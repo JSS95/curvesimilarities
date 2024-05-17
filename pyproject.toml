@@ -19,6 +19,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+doc = [
+    "sphinx",
+]
 dev = [
     "flake8",
     "flake8-docstrings",
@@ -26,6 +29,7 @@ dev = [
     "isort",
     "docformatter",
     "doc8",
+    "curvesimilarities[doc]",
 ]
 
 [tool.setuptools.packages.find]
