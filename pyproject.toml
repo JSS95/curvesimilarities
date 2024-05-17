@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "curvesimilarities"
+version = "0.0.0"
+authors = [
+    {name = "Jisoo Song", email = "jeesoo9595@snu.ac.kr"}
+]
+description = "Curve similarity measures"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+dependencies = [
+  "numpy",
+  "scipy",
+  "numba",
+]
+
+[project.optional-dependencies]
+dev = [
+    "flake8",
+    "flake8-docstrings",
+    "black",
+    "isort",
+    "docformatter",
+    "doc8",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.isort]
+profile = "black"
+
+[tool.docformatter]
+recursive = true
+in-place = true
+black = true
+
+[tool.doc8]
+ignore = ["D004"]
+ignore-path = [
+    "src/*.egg-info",
+    "doc/build",
+    "doc/source/*.txt"
+]
