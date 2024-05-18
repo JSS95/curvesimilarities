@@ -21,6 +21,8 @@ dependencies = [
 [project.optional-dependencies]
 doc = [
     "sphinx",
+    "numpydoc",
+    "pydata_sphinx_theme",
 ]
 dev = [
     "flake8",
