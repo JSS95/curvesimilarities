@@ -19,6 +19,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+test = [
+    "pytest",
+]
 doc = [
     "sphinx",
     "numpydoc",
@@ -31,7 +34,7 @@ dev = [
     "isort",
     "docformatter",
     "doc8",
-    "curvesimilarities[doc]",
+    "curvesimilarities[test,doc]",
 ]
 
 [tool.setuptools.packages.find]
@@ -52,3 +55,11 @@ ignore-path = [
     "doc/build",
     "doc/source/*.txt"
 ]
+
+[tool.pytest.ini_options]
+doctest_optionflags = [
+    "NORMALIZE_WHITESPACE",
+    "IGNORE_EXCEPTION_DETAIL",
+    "ELLIPSIS",
+]
+addopts = "--doctest-modules"

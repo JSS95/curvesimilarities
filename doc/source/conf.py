@@ -15,6 +15,7 @@ author = "Jisoo Song"
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
 ]
 
 templates_path = ["_templates"]
