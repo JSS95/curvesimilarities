@@ -28,4 +28,7 @@ html_static_path = []
 
 html_theme_options = {
     "github_url": "https://github.com/JSS95/curvesimilarities",
+    "logo": {
+        "text": "CurveSimilarities",
+    },
 }
