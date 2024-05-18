@@ -1,7 +1,8 @@
 """Curve similarity measures."""
 
-from .dfd import dfd
+from .frechet import dfd, fd
 
 __all__ = [
+    "fd",
     "dfd",
 ]
