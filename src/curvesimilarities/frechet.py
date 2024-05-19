@@ -1,7 +1,5 @@
 """Fréchet distance and its variants."""
 
-import sys
-
 import numpy as np
 from numba import njit
 from scipy.spatial.distance import cdist
@@ -12,7 +10,8 @@ __all__ = [
 ]
 
 
-EPSILON = np.float_(sys.float_info.epsilon)
+EPSILON = np.finfo(np.float_).eps
+NAN = np.float_(np.nan)
 
 
 def fd(P, Q):
@@ -72,9 +71,8 @@ def fd(P, Q):
     return _fd(P, Q)
 
 
-@njit
+@njit(cache=True)
 def _free_interval(A, B, C, eps):
-    NAN = np.float_(np.nan)
     # resulting interval is always in [0, 1] or is [nan, nan].
     coeff1 = B - A
     coeff2 = A - C
@@ -99,7 +97,7 @@ def _free_interval(A, B, C, eps):
     return interval
 
 
-@njit
+@njit(cache=True)
 def _decision_problem(P, Q, eps):
     """Algorithm 1 of Alt & Godau (1995)."""
     # Decide reachablilty
@@ -157,7 +155,7 @@ def _decision_problem(P, Q, eps):
     return L[-1, -1, 1] == 1 or B[-1, -1, 1] == 1
 
 
-@njit
+@njit(cache=True)
 def _critical_b(A, B, C):
     v = B - A
     w = C - A
@@ -174,7 +172,7 @@ def _critical_b(A, B, C):
     return dist
 
 
-@njit
+@njit(cache=True)
 def _fd(P, Q):
     """Algorithm 3 of Alt & Godau (1995)."""
     crit_a = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
@@ -274,7 +272,7 @@ def dfd(P, Q):
     return _dfd(dist)[-1, -1]
 
 
-@njit
+@njit(cache=True)
 def _dfd(dist):
     # Eiter, T., & Mannila, H. (1994)
     p, q = dist.shape
