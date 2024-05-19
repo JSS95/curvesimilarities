@@ -14,4 +14,6 @@ fastest and the most NumPy-friendly.
 API reference
 =============
 
-.. autofunction:: curvesimilarities.dfd
+.. autofunction:: fd
+
+.. autofunction:: dfd
