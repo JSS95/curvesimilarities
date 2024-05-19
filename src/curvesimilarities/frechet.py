@@ -206,7 +206,7 @@ def _fd(P, Q):
 
     # parametric search
     e1, e2 = crit_b[start], crit_b[end]
-    tol = max(e1 / 100, EPSILON)
+    tol = EPSILON
     while e2 - e1 > tol:
         mid = (e1 + e2) / 2
         mid_reachable = _decision_problem(P, Q, mid)
