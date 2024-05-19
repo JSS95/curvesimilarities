@@ -1,8 +1,29 @@
 # CurveSimilarities
 
-[![Documentation Status](https://readthedocs.org/projects/curvesimilarities/badge/?version=latest)](https://curvesimilarities.readthedocs.io/en/latest/?badge=latest)
+[![License](https://img.shields.io/github/license/JSS95/curvesimilarities)](https://github.com/JSS95/curvesimilarities/blob/master/LICENSE)
+[![CI](https://github.com/JSS95/curvesimilarities/actions/workflows/ci.yml/badge.svg)](https://github.com/JSS95/curvesimilarities/actions/workflows/ci.yml)
+[![CD](https://github.com/JSS95/curvesimilarities/actions/workflows/cd.yml/badge.svg)](https://github.com/JSS95/curvesimilarities/actions/workflows/cd.yml)
+[![Docs](https://readthedocs.org/projects/curvesimilarities/badge/?version=latest)](https://curvesimilarities.readthedocs.io/en/latest/?badge=latest)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/curvesimilarities.svg)](https://pypi.python.org/pypi/curvesimilarities/)
+[![PyPI Version](https://img.shields.io/pypi/v/curvesimilarities.svg)](https://pypi.python.org/pypi/curvesimilarities/)
 
 Curve similarity measures, implemented using Numba.
+
+## Usage
+
+```python
+>>> from curvesimilarities import fd  # (Continuous) Fréchet distance
+>>> fd([[0, 0], [1, 3], [2, 0]], [[0, 1], [2, 1]])
+2.0
+```
+
+## Installation
+
+CurveSimilarities can be installed using `pip`.
+
+```
+$ pip install curvesimilarities
+```
 
 ## Documentation
 

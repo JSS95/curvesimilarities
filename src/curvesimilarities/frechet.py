@@ -1,4 +1,4 @@
-"""Frechet distance and its variants."""
+"""Fréchet distance and its variants."""
 
 import sys
 
@@ -16,21 +16,34 @@ EPSILON = np.float_(sys.float_info.epsilon)
 
 
 def fd(P, Q):
-    """(Continuous) Frechet distance.
+    r"""(Continuous) Fréchet distance between two open polygonal curves.
+
+    Let :math:`f: [0, 1] \to \Omega` and :math:`g: [0, 1] \to \Omega` be curves
+    where :math:`\Omega` is a metric space. The Fréchet distance between
+    :math:`f` and :math:`g` is defined as
+
+    .. math::
+
+        \inf_{\alpha, \beta} \max_{t \in [0, 1]}
+        \lVert f(\alpha(t)) - g(\beta(t)) \rVert
+
+    where :math:`\alpha, \beta: [0, 1] \to [0, 1]` are continuous non-decreasing
+    surjections and :math:`\lVert \cdot \rVert` is the underlying metric, which
+    is the Euclidean metric in this implementation.
 
     Parameters
     ----------
     P : array_like
-        An :math:`p` by :math:`n` array of :math:`p` verticess in an
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
         :math:`n`-dimensional space.
     Q : array_like
-        An :math:`q` by :math:`n` array of :math:`q` verticess in an
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
 
     Returns
     -------
     dist : double
-        The (continuous) Frechet distance between P and Q.
+        The (continuous) Fréchet distance between P and Q.
 
     Raises
     ------
@@ -208,21 +221,33 @@ def _fd(P, Q):
 
 
 def dfd(P, Q):
-    """Discrete Frechet distance.
+    r"""Discrete Fréchet distance between two open polygonal curves.
+
+    Let :math:`\{P_0, P_1, ..., P_n\}` and :math:`\{Q_0, Q_1, ..., Q_m\}` be
+    polyline vertices in metris space. The discrete Fréchet distance between
+    two polylines is defined as
+
+    .. math::
+
+        \min_{C} \max_{(i, j) \in C} \lVert P_i - Q_j \rVert
+
+    where :math:`C` is a nondecreasing coupling over
+    :math:`\{0, ..., n\} \times \{0, ..., m\}`, starting from :math:`(0, 0)` and
+    ending with :math:`(n, m)`.
 
     Parameters
     ----------
     P : array_like
-        An :math:`p` by :math:`n` array of :math:`p` verticess in an
+        An :math:`p` by :math:`n` array of :math:`p` vertices in an
         :math:`n`-dimensional space.
     Q : array_like
-        An :math:`q` by :math:`n` array of :math:`q` verticess in an
+        An :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
 
     Returns
     -------
     dist : double
-        The discrete Frechet distance between P and Q.
+        The discrete Fréchet distance between P and Q.
 
     Raises
     ------
