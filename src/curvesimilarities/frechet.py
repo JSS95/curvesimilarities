@@ -68,7 +68,7 @@ def fd(P, Q):
         raise ValueError("Vertices must not be empty.")
     P = np.asarray(P, dtype=np.float_)
     Q = np.asarray(Q, dtype=np.float_)
-    return _fd(P, Q)
+    return np.float_(_fd(P, Q))
 
 
 @njit(cache=True)
