@@ -224,7 +224,7 @@ def dfd(P, Q):
     r"""Discrete Fréchet distance between two open polygonal curves.
 
     Let :math:`\{P_0, P_1, ..., P_n\}` and :math:`\{Q_0, Q_1, ..., Q_m\}` be
-    polyline vertices in metris space. The discrete Fréchet distance between
+    polyline vertices in metric space. The discrete Fréchet distance between
     two polylines is defined as
 
     .. math::
@@ -233,7 +233,8 @@ def dfd(P, Q):
 
     where :math:`C` is a nondecreasing coupling over
     :math:`\{0, ..., n\} \times \{0, ..., m\}`, starting from :math:`(0, 0)` and
-    ending with :math:`(n, m)`.
+    ending with :math:`(n, m)`. :math:`\lVert \cdot \rVert` is the underlying
+    metric, which is the Euclidean metric in this implementation.
 
     Parameters
     ----------
