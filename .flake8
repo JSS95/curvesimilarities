@@ -6,5 +6,6 @@ extend-ignore =
     E203,
 # flake-docstrings
 per-file-ignores =
+    tests/**:D
     doc/**:D
 docstring-convention = google

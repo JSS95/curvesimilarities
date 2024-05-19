@@ -1,5 +1,7 @@
 """Frechet distance and its variants."""
 
+import sys
+
 import numpy as np
 from numba import njit
 from scipy.spatial.distance import cdist
@@ -8,6 +10,9 @@ __all__ = [
     "fd",
     "dfd",
 ]
+
+
+EPSILON = np.float_(sys.float_info.epsilon)
 
 
 def fd(P, Q):
@@ -41,16 +46,25 @@ def fd(P, Q):
     .. [#] Alt, H., & Godau, M. (1995). Computing the Fréchet distance between
        two polygonal curves. International Journal of Computational Geometry &
        Applications, 5(01n02), 75-91.
+
+    Examples
+    --------
+    >>> fd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]])
+    1.0...
     """
     if len(P) == 0 or len(Q) == 0:
         raise ValueError("Vertices must not be empty.")
+    P = np.asarray(P, dtype=np.float_)
+    Q = np.asarray(Q, dtype=np.float_)
+    return _fd(P, Q)
 
 
-def _free_interval(pt0, pt1, pt2, eps):
+@njit
+def _free_interval(A, B, C, eps):
     NAN = np.float_(np.nan)
     # resulting interval is always in [0, 1] or is [nan, nan].
-    coeff1 = pt1 - pt0
-    coeff2 = pt0 - pt2
+    coeff1 = B - A
+    coeff2 = A - C
     a = np.dot(coeff1, coeff1)
     c = np.dot(coeff2, coeff2) - eps**2
     if a == 0:  # degenerate case
@@ -60,24 +74,21 @@ def _free_interval(pt0, pt1, pt2, eps):
             interval = [np.float_(0), np.float_(1)]
         return interval
     b = 2 * np.dot(coeff1, coeff2)
-    D = b**2 - 4 * a * c
-    if D < 0:
+    Det = b**2 - 4 * a * c
+    if Det < 0:
         interval = [NAN, NAN]
     else:
-        start = np.max([(-b - D**0.5) / 2 / a, 0])
-        end = np.min([(-b + D**0.5) / 2 / a, 1])
+        start = max((-b - Det**0.5) / 2 / a, np.float_(0))
+        end = min((-b + Det**0.5) / 2 / a, np.float_(1))
         if start > 1 or end < 0:
             start = end = NAN
         interval = [start, end]
     return interval
 
 
+@njit
 def _decision_problem(P, Q, eps):
-    # Early abandon
-    first = P[0] - Q[0]
-    if np.dot(first, first) > eps**2:
-        return False
-
+    """Algorithm 1 of Alt & Godau (1995)."""
     # Decide reachablilty
     B = np.empty((len(P) - 1, len(Q), 2), dtype=np.float_)
     start, end = _free_interval(P[0], P[1], Q[0], eps)
@@ -113,8 +124,8 @@ def _decision_problem(P, Q, eps):
         for j in range(len(Q) - 1):
             prevL_start, _ = L[i, j]
             prevB_start, _ = B[i, j]
-            L_start, L_end = _free_interval(P[i], P[i + 1], Q[j + 1], eps)
-            B_start, B_end = _free_interval(Q[j], Q[j + 1], P[i + 1], eps)
+            L_start, L_end = _free_interval(Q[j], Q[j + 1], P[i + 1], eps)
+            B_start, B_end = _free_interval(P[i], P[i + 1], Q[j + 1], eps)
 
             if not np.isnan(prevB_start):
                 L[i + 1, j] = [L_start, L_end]
@@ -130,7 +141,70 @@ def _decision_problem(P, Q, eps):
             else:
                 B[i, j + 1] = [np.nan, np.nan]
 
-    return L[-1, -1, 1] == 1
+    return L[-1, -1, 1] == 1 or B[-1, -1, 1] == 1
+
+
+@njit
+def _critical_b(A, B, C):
+    v = B - A
+    w = C - A
+    vv = np.dot(v, v)
+    if vv == 0:
+        return np.linalg.norm(w)
+    t = np.dot(v, w) / vv
+    if t < 0:
+        dist = np.linalg.norm(w)
+    elif t > 1:
+        dist = np.linalg.norm(C - B)
+    else:
+        dist = np.linalg.norm(t * v - w)
+    return dist
+
+
+@njit
+def _fd(P, Q):
+    """Algorithm 3 of Alt & Godau (1995)."""
+    crit_a = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
+
+    crit_b = np.empty(2 * len(P) * len(Q) - len(P) - len(Q) + 1, dtype=np.float_)
+    count = 0
+    for i in range(len(P) - 1):
+        for j in range(len(Q)):
+            dist = _critical_b(P[i], P[i + 1], Q[j])
+            if dist > crit_a:
+                crit_b[count] = dist
+                count += 1
+    for i in range(len(P)):
+        for j in range(len(Q) - 1):
+            dist = _critical_b(Q[j], Q[j + 1], P[i])
+            if dist > crit_a:
+                crit_b[count] = dist
+                count += 1
+    crit_b[count] = crit_a
+    crit_b = np.sort(crit_b[: count + 1])
+
+    # binary search
+    start, end = 0, count
+    while end - start > 1:
+        mid = (start + end) // 2
+        mid_reachable = _decision_problem(P, Q, crit_b[mid])
+        if mid_reachable:
+            end = mid
+        else:
+            start = mid
+
+    # parametric search
+    e1, e2 = crit_b[start], crit_b[end]
+    tol = max(e1 / 100, EPSILON)
+    while e2 - e1 > tol:
+        mid = (e1 + e2) / 2
+        mid_reachable = _decision_problem(P, Q, mid)
+        if mid_reachable:
+            e2 = mid
+        else:
+            e1 = mid
+
+    return e2
 
 
 def dfd(P, Q):
