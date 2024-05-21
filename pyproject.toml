@@ -33,6 +33,11 @@ dependencies = [
   "numba",
 ]
 
+[project.urls]
+homepage = "https://github.com/JSS95/curvesimilarities"
+source = "https://github.com/JSS95/curvesimilarities"
+documentation = "https://curvesimilarities.readthedocs.io"
+
 [project.optional-dependencies]
 test = [
     "pytest",
