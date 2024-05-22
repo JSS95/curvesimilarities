@@ -46,6 +46,7 @@ doc = [
     "sphinx",
     "numpydoc",
     "pydata_sphinx_theme",
+    "matplotlib",
 ]
 dev = [
     "flake8",
@@ -82,4 +83,4 @@ doctest_optionflags = [
     "IGNORE_EXCEPTION_DETAIL",
     "ELLIPSIS",
 ]
-addopts = "--doctest-modules"
+addopts = "--doctest-modules --ignore=doc"

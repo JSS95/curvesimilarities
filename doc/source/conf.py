@@ -17,9 +17,13 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "numpydoc",
+    "matplotlib.sphinxext.plot_directive",
 ]
 
 autodoc_member_order = "bysource"
+
+with open("plot_pre_code") as f:
+    plot_pre_code = f.read()
 
 templates_path = ["_templates"]
 exclude_patterns = []
