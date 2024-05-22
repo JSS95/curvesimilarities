@@ -14,6 +14,8 @@ to be the most NumPy-friendly and the easiest to use.
 API reference
 =============
 
-.. autofunction:: fd
+curvesimilarities.frechet
+-------------------------
 
-.. autofunction:: dfd
+.. automodule:: curvesimilarities.frechet
+    :members:
