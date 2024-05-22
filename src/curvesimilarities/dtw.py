@@ -57,6 +57,10 @@ def dtw(P, Q):
     ValueError
         An exception is thrown if empty array is passed.
 
+    See Also
+    --------
+    dtw_owp : Optimal warping path.
+
     Examples
     --------
     >>> dtw([[0, 0], [1, 1], [2, 0]], [[0, 1], [2, -4], [3, 2]])
