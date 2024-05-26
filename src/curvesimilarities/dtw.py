@@ -1,14 +1,8 @@
 """Dynamic time warping.
 
-This module implements only the basic algorithms [#]_.
+This module implements only the basic algorithms.
 If you need advanced features, use dedicated package such as
 `dtw-python <https://pypi.org/project/dtw-python/>`_ instead.
-
-References
-----------
-.. [#] Senin, P. (2008). Dynamic time warping algorithm review. Information and
-    Computer Science Department University of Hawaii at Manoa Honolulu, USA,
-    855(1-23), 40.
 """
 
 import numpy as np
@@ -86,6 +80,16 @@ def dtw_acm(cm):
     acm : ndarray
         2D accumulated cost matrix.
 
+    Notes
+    -----
+    This function implements the algorithm described Senin [#]_.
+
+    References
+    ----------
+    .. [#] Senin, P. (2008). Dynamic time warping algorithm review. Information
+        and Computer Science Department University of Hawaii at Manoa Honolulu,
+        USA, 855(1-23), 40.
+
     Examples
     --------
     .. plot::
@@ -131,6 +135,16 @@ def dtw_owp(acm):
     See Also
     --------
     dtw_acm : Accumulated cost matrix.
+
+    Notes
+    -----
+    This function implements the algorithm described Senin [#]_.
+
+    References
+    ----------
+    .. [#] Senin, P. (2008). Dynamic time warping algorithm review. Information
+        and Computer Science Department University of Hawaii at Manoa Honolulu,
+        USA, 855(1-23), 40.
 
     Examples
     --------
