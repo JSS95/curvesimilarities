@@ -24,7 +24,7 @@ def fd(P, Q):
     .. math::
 
         \inf_{\alpha, \beta} \max_{t \in [0, 1]}
-        \lVert f(\alpha(t)) - g(\beta(t)) \rVert
+        \lVert f(\alpha(t)) - g(\beta(t)) \rVert,
 
     where :math:`\alpha, \beta: [0, 1] \to [0, 1]` are continuous non-decreasing
     surjections and :math:`\lVert \cdot \rVert` is the underlying metric, which
@@ -227,7 +227,7 @@ def dfd(P, Q):
 
     .. math::
 
-        \min_{C} \max_{(i, j) \in C} \lVert P_i - Q_j \rVert
+        \min_{C} \max_{(i, j) \in C} \lVert P_i - Q_j \rVert,
 
     where :math:`C` is a nondecreasing coupling over
     :math:`\{0, ..., n\} \times \{0, ..., m\}`, starting from :math:`(0, 0)` and

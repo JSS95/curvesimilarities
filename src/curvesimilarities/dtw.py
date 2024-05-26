@@ -25,7 +25,7 @@ def dtw(P, Q):
 
     .. math::
 
-        \min_{C} \sum_{(i, j) \in C} \lVert P_i - Q_j \rVert
+        \min_{C} \sum_{(i, j) \in C} \lVert P_i - Q_j \rVert,
 
     where :math:`C` is a nondecreasing coupling over
     :math:`\{0, ..., n\} \times \{0, ..., m\}`, starting from :math:`(0, 0)` and
