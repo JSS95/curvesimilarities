@@ -30,3 +30,9 @@ curvesimilarities.dtw
 
 .. automodule:: curvesimilarities.dtw
     :members:
+
+curvesimilarities.integfrechet
+------------------------------
+
+.. automodule:: curvesimilarities.integfrechet
+    :members:
