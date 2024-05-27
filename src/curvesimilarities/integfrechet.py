@@ -84,3 +84,31 @@ def _line_point_integrate(a, b, p):
         * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / (B + 2 * np.sqrt(C)))
     ) / 8
     return A * integ
+
+
+@njit(cache=True)
+def _line_line_integrate(a, b, c, d):
+    r"""Analytic integration from AC to BD.
+
+    .. math::
+        \int_0^1 \lVert (A - C) + (B - A + C - D)t \rVert \cdot
+        \left( \lVert B - A \rVert + \lVert D - C \rVert \right) dt
+    """
+    # Goal: integrate sqrt(A*t**2 + B*t + C) * (sqrt(D) + sqrt(E)) dt over t [0, 1]
+    # where A = dot(u - v, u - v), B = 2 * dot(u - v, w), C = dot(w, w), D = dot(u, u),
+    # and E = dot(v, v); where u = b - a, v = d - c and w = a - c.
+    # Rewrite: (sqrt(A*D) + sqrt(A*E)) * integral sqrt(t**2 + B*t + C) dt over t [0, 1]
+    # where B = 2 * dot(u - v, w) / A and C = dot(w, w) / A
+    u, v, w = b - a, d - c, a - c
+    A = np.dot(u - v, u - v)
+    C, D, E = np.dot(w, w), np.dot(u, u), np.dot(v, v)
+    if A < EPSILON:
+        return np.sqrt(C * D) + np.sqrt(C * E)
+    B, C = 2 * np.dot(u - v, w) / A, C / A
+    integ = (
+        4 * np.sqrt(1 + B + C)
+        + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
+        - (B**2 - 4 * C)
+        * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / (B + 2 * np.sqrt(C)))
+    ) / 8
+    return (np.sqrt(A * D) + np.sqrt(A * E)) * integ
