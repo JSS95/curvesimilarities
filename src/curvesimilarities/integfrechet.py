@@ -1,8 +1,14 @@
 """Integral Fréchet distance."""
 
+import numpy as np
+from numba import njit
+
 __all__ = [
     "ifd",
 ]
+
+
+EPSILON = np.finfo(np.float_).eps
 
 
 def ifd(P, Q):
@@ -51,3 +57,30 @@ def ifd(P, Q):
        Continuous Dynamic Time Warping." Proceedings of the 28th International
        Conference on Advances in Geographic Information Systems. 2020.
     """
+
+
+@njit(cache=True)
+def _line_point_integrate(a, b, p):
+    r"""Analytic integration from AP to BP.
+
+    .. math::
+        \int_0^1 \lVert (A - P) + (B - A) t \rVert \cdot \lVert (B - A) \rVert dt
+    """
+    # Goal: integrate sqrt(A*t**2 + B*t + C) * sqrt(A) dt over t [0, 1]
+    # where A = dot(b - a, b - a), B = 2 * dot(a - p, b - a) and C = dot(a - p, a - p).
+    # Can be simplified to A * integral sqrt(t**2 + B/A*t + C/A) dt.
+    # Rewrite: A * integral sqrt(t**2 + B*t + C) dt over t [0, 1]
+    # where B = 2 * dot(a - p, b - a) / A and C = dot(a - p, a - p) / A.
+    A = np.dot(b - a, b - a)
+    if A < EPSILON:
+        # Degenerate: ab does not form line segement.
+        return 0
+    B = 2 * np.dot(b - a, a - p) / A
+    C = np.dot(a - p, a - p) / A
+    integ = (
+        4 * np.sqrt(1 + B + C)
+        + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
+        - (B**2 - 4 * C)
+        * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / (B + 2 * np.sqrt(C)))
+    ) / 8
+    return A * integ
