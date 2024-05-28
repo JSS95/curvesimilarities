@@ -2,6 +2,7 @@
 
 import numpy as np
 from numba import njit
+from numba.np.extensions import cross2d
 
 __all__ = [
     "ifd",
@@ -75,6 +76,17 @@ def _line_point_integrate(a, b, p):
     if A < EPSILON:
         # Degenerate: ab does not form line segement.
         return 0
+    if np.abs(cross2d(b - a, p - a)) < EPSILON:
+        # Degenerate: a, b, p all on a same line.
+        t = np.dot(b - a, p - a) / A
+        L1 = np.dot(p - a, p - a)
+        L2 = np.dot(p - b, p - b)
+        if t < 0:
+            return (L2 - L1) / 2
+        elif t > 1:
+            return (L1 - L2) / 2
+        else:
+            return (L1 + L2) / 2
     B = 2 * np.dot(b - a, a - p) / A
     C = np.dot(a - p, a - p) / A
     integ = (
@@ -103,12 +115,23 @@ def _line_line_integrate(a, b, c, d):
     A = np.dot(u - v, u - v)
     C, D, E = np.dot(w, w), np.dot(u, u), np.dot(v, v)
     if A < EPSILON:
+        # Degenerate: ab and cd has same direction and magnitude
         return np.sqrt(C * D) + np.sqrt(C * E)
     B, C = 2 * np.dot(u - v, w) / A, C / A
-    integ = (
-        4 * np.sqrt(1 + B + C)
-        + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
-        - (B**2 - 4 * C)
-        * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / (B + 2 * np.sqrt(C)))
-    ) / 8
+    if B < EPSILON and C < EPSILON:
+        # Degenerate: B and C are 0 (either w = 0 or A is too large)
+        return (np.sqrt(A * D) + np.sqrt(A * E)) / 2
+    denom = B + 2 * np.sqrt(C)
+    if denom < EPSILON:
+        # Degenerate: u-v and w are on the opposite direction
+        if B > 0 or B < -2:
+            integ = (-1 - B) / 2
+        else:
+            integ = (2 + 2 * B + B**2) / 4
+    else:
+        integ = (
+            4 * np.sqrt(1 + B + C)
+            + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
+            - (B**2 - 4 * C) * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / denom)
+        ) / 8
     return (np.sqrt(A * D) + np.sqrt(A * E)) * integ
