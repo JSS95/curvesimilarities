@@ -57,7 +57,30 @@ def ifd(P, Q):
     .. [#] Brankovic, M., et al. "(k, l)-Medians Clustering of Trajectories Using
        Continuous Dynamic Time Warping." Proceedings of the 28th International
        Conference on Advances in Geographic Information Systems. 2020.
-    """
+@njit(cache=True)
+def _lm(P1, P2, Q1, Q2):
+    """b value of lm: y = x + b"""
+    P1P2 = P2 - P1
+    Q1Q2 = Q2 - Q1
+    L1 = np.linalg.norm(P1P2)
+    L2 = np.linalg.norm(Q1Q2)
+    if L1 < EPSILON or L2 < EPSILON:
+        return np.float_(0)
+    u = (P1P2) / L1
+    v = (Q1Q2) / L2
+    w = Q1 - P1
+    if np.abs(cross2d(P1P2, Q1Q2)) > EPSILON:
+        u_dot_v = np.dot(u, v)
+        A = np.array([[1, -u_dot_v], [u_dot_v, -1]], dtype=np.float_)
+        B = np.array([-np.dot(u, w), -np.dot(v, w)], dtype=np.float_)
+        # A.[x, y] = B
+        # lm: -x + y = b
+        b = np.dot(np.array([-1, 1]), np.linalg.solve(A, B))
+    else:
+        # P and Q are parallel.
+        # Equations degenerate into x - y = -u.w
+        b = np.dot(u, w)
+    return b
 
 
 @njit(cache=True)
