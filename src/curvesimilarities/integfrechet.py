@@ -68,27 +68,31 @@ def _line_point_integrate(a, b, p):
         \int_0^1 \lVert (A - P) + (B - A) t \rVert \cdot \lVert (B - A) \rVert dt
     """
     # Goal: integrate sqrt(A*t**2 + B*t + C) * sqrt(A) dt over t [0, 1]
-    # where A = dot(b - a, b - a), B = 2 * dot(a - p, b - a) and C = dot(a - p, a - p).
+    # where A = dot(ab, ab), B = 2 * dot(pa, ab) and C = dot(pa, pa).
     # Can be simplified to A * integral sqrt(t**2 + B/A*t + C/A) dt.
     # Rewrite: A * integral sqrt(t**2 + B*t + C) dt over t [0, 1]
-    # where B = 2 * dot(a - p, b - a) / A and C = dot(a - p, a - p) / A.
-    A = np.dot(b - a, b - a)
+    # where B = 2 * dot(pa, ab) / A and C = dot(pa, pa) / A.
+    ab = b - a
+    A = np.dot(ab, ab)
     if A < EPSILON:
         # Degenerate: ab does not form line segement.
         return 0
-    if np.abs(cross2d(b - a, p - a)) < EPSILON:
+    ap = p - a
+    if np.abs(cross2d(ab, ap)) < EPSILON:
         # Degenerate: a, b, p all on a same line.
-        t = np.dot(b - a, p - a) / A
-        L1 = np.dot(p - a, p - a)
-        L2 = np.dot(p - b, p - b)
+        t = np.dot(ab, ap) / A
+        L1 = np.dot(ap, ap)
+        bp = p - b
+        L2 = np.dot(bp, bp)
         if t < 0:
             return (L2 - L1) / 2
         elif t > 1:
             return (L1 - L2) / 2
         else:
             return (L1 + L2) / 2
-    B = 2 * np.dot(b - a, a - p) / A
-    C = np.dot(a - p, a - p) / A
+    pa = -ap
+    B = 2 * np.dot(ab, pa) / A
+    C = np.dot(pa, pa) / A
     integ = (
         4 * np.sqrt(1 + B + C)
         + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
@@ -107,17 +111,18 @@ def _line_line_integrate(a, b, c, d):
         \left( \lVert B - A \rVert + \lVert D - C \rVert \right) dt
     """
     # Goal: integrate sqrt(A*t**2 + B*t + C) * (sqrt(D) + sqrt(E)) dt over t [0, 1]
-    # where A = dot(u - v, u - v), B = 2 * dot(u - v, w), C = dot(w, w), D = dot(u, u),
+    # where A = dot(vu, vu), B = 2 * dot(vu, w), C = dot(w, w), D = dot(u, u),
     # and E = dot(v, v); where u = b - a, v = d - c and w = a - c.
     # Rewrite: (sqrt(A*D) + sqrt(A*E)) * integral sqrt(t**2 + B*t + C) dt over t [0, 1]
-    # where B = 2 * dot(u - v, w) / A and C = dot(w, w) / A
+    # where B = 2 * dot(vu, w) / A and C = dot(w, w) / A
     u, v, w = b - a, d - c, a - c
-    A = np.dot(u - v, u - v)
+    vu = u - v
+    A = np.dot(vu, vu)
     C, D, E = np.dot(w, w), np.dot(u, u), np.dot(v, v)
     if A < EPSILON:
         # Degenerate: ab and cd has same direction and magnitude
         return np.sqrt(C * D) + np.sqrt(C * E)
-    B, C = 2 * np.dot(u - v, w) / A, C / A
+    B, C = 2 * np.dot(vu, w) / A, C / A
     if B < EPSILON and C < EPSILON:
         # Degenerate: B and C are 0 (either w = 0 or A is too large)
         return (np.sqrt(A * D) + np.sqrt(A * E)) / 2
