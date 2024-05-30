@@ -66,8 +66,10 @@ def ifd(P, Q):
 
 
 @njit(cache=True)
-def _cell_owp_integral(P1, P2, Q1, Q2, s, t):
-    """Integral along optimal warping path between two points in a cell."""
+def _cell_pts_costs(P_pts, Q_pts, P_costs, Q_costs):
+    P1, P2 = P_pts[[0, -1]]
+    Q1, Q2 = Q_pts[[0, -1]]
+
     P1P2 = P2 - P1
     Q1Q2 = Q2 - Q1
     L1 = np.linalg.norm(P1P2)
@@ -95,6 +97,41 @@ def _cell_owp_integral(P1, P2, Q1, Q2, s, t):
         # Equations degenerate into x - y = -u.w, therefore b = u.w
         b = np.dot(u, w)
 
+    delta_P = L1 / (len(P_pts) - 1)
+    delta_Q = L2 / (len(Q_pts) - 1)
+
+    new_P_costs = np.empty_like(P_costs)
+    new_Q_costs = np.empty_like(Q_costs)
+
+    new_P_costs[0] = Q_costs[-1]
+    for i in range(1, len(new_P_costs)):
+        t = np.array([delta_P * i, L2], dtype=np.float_)
+        costs = np.empty(len(Q_pts) + i, dtype=np.float_)
+        for j in range(len(Q_pts)):
+            s = np.array([0, delta_Q * j], dtype=np.float_)
+            costs[j] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+        for i_ in range(i):
+            s = np.array([delta_P * (i_ + 1), 0], dtype=np.float_)
+            costs[len(Q_pts) + i_] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+
+    new_Q_costs[0] = P_costs[-1]
+    for j in range(1, len(new_Q_costs) - 1):
+        t = np.array([L1, delta_Q * j], dtype=np.float_)
+        costs = np.empty(len(P_pts) + j, dtype=np.float_)
+        for i in range(len(P_pts)):
+            s = np.array([delta_P * i, 0], dtype=np.float_)
+            costs[i] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+        for j_ in range(j):
+            s = np.array([0, delta_Q * (j_ + 1)], dtype=np.float_)
+            costs[len(P_pts) + j_] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+    new_Q_costs[-1] = new_P_costs[-1]
+
+    return new_P_costs, new_Q_costs
+
+
+@njit(cache=True)
+def _cell_owp_integral(P1, u, Q1, v, b, s, t):
+    """Integral along optimal warping path between two points in a cell."""
     # Find steiner points in curve space
     P_s = P1 + u * s[0]
     P_t = P1 + u * t[0]
@@ -132,14 +169,12 @@ def _cell_owp_integral(P1, P2, Q1, Q2, s, t):
 
     else:  # pass c'
         if s[1] > s[0] + b:  # right -> up
-            ret = (
-                _line_point_integrate(P_s, P_t, Q_s)
-                + _line_point_integrate(Q_s, Q_t, P_t)
+            ret = _line_point_integrate(P_s, P_t, Q_s) + _line_point_integrate(
+                Q_s, Q_t, P_t
             )
         else:  # up -> right
-            ret = (
-                _line_point_integrate(Q_s, Q_t, P_s)
-                + _line_point_integrate(P_s, P_t, Q_t)
+            ret = _line_point_integrate(Q_s, Q_t, P_s) + _line_point_integrate(
+                P_s, P_t, Q_t
             )
     return ret
 
