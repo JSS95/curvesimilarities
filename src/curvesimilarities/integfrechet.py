@@ -57,30 +57,91 @@ def ifd(P, Q):
     .. [#] Brankovic, M., et al. "(k, l)-Medians Clustering of Trajectories Using
        Continuous Dynamic Time Warping." Proceedings of the 28th International
        Conference on Advances in Geographic Information Systems. 2020.
+
+    Examples
+    --------
+    >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]])
+    """
+    ...
+
+
 @njit(cache=True)
-def _lm(P1, P2, Q1, Q2):
-    """b value of lm: y = x + b"""
+def _cell_owp_integral(P1, P2, Q1, Q2, s, t):
+    """Integral along optimal warping path between two points in a cell."""
     P1P2 = P2 - P1
     Q1Q2 = Q2 - Q1
     L1 = np.linalg.norm(P1P2)
     L2 = np.linalg.norm(Q1Q2)
-    if L1 < EPSILON or L2 < EPSILON:
-        return np.float_(0)
-    u = (P1P2) / L1
-    v = (Q1Q2) / L2
+
+    if L1 < EPSILON:
+        u = np.array([0, 0], np.float_)
+    else:
+        u = (P1P2) / L1
+    if L2 < EPSILON:
+        v = np.array([0, 0], np.float_)
+    else:
+        v = (Q1Q2) / L2
+
+    # Find lm: y = x + b
     w = Q1 - P1
     if np.abs(cross2d(P1P2, Q1Q2)) > EPSILON:
+        # b = -x + y where A.[x, y] = B
         u_dot_v = np.dot(u, v)
         A = np.array([[1, -u_dot_v], [u_dot_v, -1]], dtype=np.float_)
         B = np.array([-np.dot(u, w), -np.dot(v, w)], dtype=np.float_)
-        # A.[x, y] = B
-        # lm: -x + y = b
         b = np.dot(np.array([-1, 1]), np.linalg.solve(A, B))
     else:
         # P and Q are parallel.
-        # Equations degenerate into x - y = -u.w
+        # Equations degenerate into x - y = -u.w, therefore b = u.w
         b = np.dot(u, w)
-    return b
+
+    # Find steiner points in curve space
+    P_s = P1 + u * s[0]
+    P_t = P1 + u * t[0]
+    Q_s = Q1 + v * s[1]
+    Q_t = Q1 + v * t[1]
+
+    if s[1] > s[0] + b:
+        cs = np.array([s[1] - b, s[1]])
+    else:
+        cs = np.array([s[0], s[0] + b])
+    if t[1] > t[1] + b:
+        ct = np.array([t[1] - b, t[1]])
+    else:
+        ct = np.array([t[0], t[0] + b])
+
+    if cs[0] < ct[0]:  # pass through lm
+        P_cs = P1 + u * cs[0]
+        P_ct = P1 + u * ct[0]
+        Q_cs = Q1 + v * cs[1]
+        Q_ct = Q1 + v * ct[1]
+
+        if s[1] > s[0] + b:  # right
+            s_to_cs = _line_point_integrate(P_s, P_cs, Q_s)
+        else:  # up
+            s_to_cs = _line_point_integrate(Q_s, Q_cs, P_s)
+
+        cs_to_ct = _line_line_integrate(P_cs, P_ct, Q_cs, Q_ct)
+
+        if t[1] > t[0] + b:  # up
+            ct_to_t = _line_point_integrate(Q_ct, Q_t, P_t)
+        else:  # right
+            ct_to_t = _line_point_integrate(P_ct, P_t, Q_t)
+
+        ret = s_to_cs + cs_to_ct + ct_to_t
+
+    else:  # pass c'
+        if s[1] > s[0] + b:  # right -> up
+            ret = (
+                _line_point_integrate(P_s, P_t, Q_s)
+                + _line_point_integrate(Q_s, Q_t, P_t)
+            )
+        else:  # up -> right
+            ret = (
+                _line_point_integrate(Q_s, Q_t, P_s)
+                + _line_point_integrate(P_s, P_t, Q_t)
+            )
+    return ret
 
 
 @njit(cache=True)
