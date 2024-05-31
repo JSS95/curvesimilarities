@@ -12,7 +12,7 @@ __all__ = [
 EPSILON = np.finfo(np.float_).eps
 
 
-def ifd(P, Q):
+def ifd(P, Q, delta):
     r"""Integral Fréchet distance between two open polygonal curves.
 
     Let :math:`f, g: [0, 1] \to \Omega` be curves defined in a metric space
@@ -42,6 +42,8 @@ def ifd(P, Q):
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
+    delta : double
+        Maximum length of edges between Steiner points.
 
     Returns
     -------
@@ -60,15 +62,109 @@ def ifd(P, Q):
 
     Examples
     --------
-    >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]])
+    >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    1.9...
     """
-    ...
+    P = np.asarray(P, dtype=np.float_)
+    Q = np.asarray(Q, dtype=np.float_)
+
+    P_subedges_num, P_pts = _sample_pts(P, delta)
+    P_costs = _edge_costs(P_pts, P_subedges_num, Q[0])
+
+    Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    Q_costs = _edge_costs(Q_pts, Q_subedges_num, P[0])
+
+    return _ifd(P_subedges_num, P_pts, P_costs, Q_subedges_num, Q_pts, Q_costs)
 
 
 @njit(cache=True)
-def _cell_pts_costs(P_pts, Q_pts, P_costs, Q_costs):
-    P1, P2 = P_pts[[0, -1]]
-    Q1, Q2 = Q_pts[[0, -1]]
+def _ifd(P_subedges_num, P_pts, P_costs, Q_subedges_num, Q_pts, Q_costs):
+    NP = len(P_subedges_num) + 1
+    P_vert_indices = np.empty(NP, dtype=np.int_)
+    P_vert_indices[0] = 0
+    P_vert_indices[1:] = np.cumsum(P_subedges_num)
+
+    NQ = len(Q_subedges_num) + 1
+    Q_vert_indices = np.empty(NQ, dtype=np.int_)
+    Q_vert_indices[0] = 0
+    Q_vert_indices[1:] = np.cumsum(Q_subedges_num)
+
+    # Instead of constructing the full steiner point arrays of (N, M), construct
+    # (N,) arrays and keep updating values to reduce memory usage.
+    # Careful: adjacent cells share corner points (current_cell[-1] == next_cell[0]).
+    # Former cell MUST NOT update the shared points! Only the latter cell should.
+    for i in range(NP - 1):  # TODO: parallelize this loop
+        p_pts = P_pts[P_vert_indices[i] : P_vert_indices[i + 1] + 1]
+        corner_costs = np.empty(NQ, dtype=np.float_)
+        corner_costs[0] = P_costs[P_vert_indices[i + 1]]
+        for j in range(NQ - 1):
+            q_pts = Q_pts[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1]
+
+            p_costs = np.empty(P_subedges_num[i] + 1, dtype=np.float_)
+            p_costs[:-1] = P_costs[P_vert_indices[i] : P_vert_indices[i + 1]]
+            p_costs[-1] = corner_costs[j]
+
+            q_costs = Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1]
+
+            new_p_costs, new_q_costs = _cell_pts_costs(p_pts, p_costs, q_pts, q_costs)
+
+            P_costs[P_vert_indices[i] : P_vert_indices[i + 1]] = new_p_costs[:-1]
+            Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1]] = new_q_costs[:-1]
+            corner_costs[j + 1] = new_q_costs[-1]
+        # Update corner costs to Q point costs.
+        # Q_costs now perfectly represents (i+1)-th column.
+        Q_costs[Q_vert_indices] = corner_costs
+        # TODO: crop i-th cell from P-related arrays (because i-th colum is cleared).
+        # It may make parallalization difficult, though...
+
+    return corner_costs[-1]
+
+
+@njit(cache=True)
+def _sample_pts(vert, delta):
+    N, D = vert.shape
+    vert_diff = np.empty((N - 1, D), dtype=np.float_)
+    for i in range(N - 1):
+        vert_diff[i] = vert[i + 1] - vert[i]
+    edge_lens = np.empty(N - 1, dtype=np.float_)
+    for i in range(N - 1):
+        edge_lens[i] = np.linalg.norm(vert_diff[i])
+    subedges_num = np.ceil(edge_lens / delta).astype(np.int_)
+
+    pts = np.empty((np.sum(subedges_num) + 1, D), dtype=np.float_)
+    count = 0
+    for cell_idx in range(N - 1):
+        P0 = vert[cell_idx]
+        v = vert_diff[cell_idx]
+        n = subedges_num[cell_idx]
+        for i in range(n):
+            pts[count + i] = P0 + (i / n) * v
+        count += n
+    pts[count] = vert[N - 1]
+    return subedges_num, pts
+
+
+@njit(cache=True)
+def _edge_costs(pts, subedges_num, p):
+    pts_costs = np.empty(len(pts), dtype=np.float_)
+    count = 0
+    pts_costs[0] = 0
+    for n in subedges_num:
+        a = pts[count]
+        for i in range(n):
+            b = pts[count + i + 1]
+            integ = _line_point_integrate(a, b, p)
+            pts_costs[count + i + 1] = pts_costs[count] + integ
+        count += n
+    return pts_costs
+
+
+@njit(cache=True)
+def _cell_pts_costs(P_pts, P_costs, Q_pts, Q_costs):
+    P1 = P_pts[0]
+    P2 = P_pts[-1]
+    Q1 = Q_pts[0]
+    Q2 = Q_pts[-1]
 
     P1P2 = P2 - P1
     Q1Q2 = Q2 - Q1
@@ -86,12 +182,13 @@ def _cell_pts_costs(P_pts, Q_pts, P_costs, Q_costs):
 
     # Find lm: y = x + b
     w = Q1 - P1
-    if np.abs(cross2d(P1P2, Q1Q2)) > EPSILON:
+    if np.abs(cross2d(u, v)) > EPSILON:
         # b = -x + y where A.[x, y] = B
         u_dot_v = np.dot(u, v)
         A = np.array([[1, -u_dot_v], [u_dot_v, -1]], dtype=np.float_)
         B = np.array([-np.dot(u, w), -np.dot(v, w)], dtype=np.float_)
-        b = np.dot(np.array([-1, 1]), np.linalg.solve(A, B))
+        x, y = np.linalg.solve(A, B)
+        b = -x + y
     else:
         # P and Q are parallel.
         # Equations degenerate into x - y = -u.w, therefore b = u.w
@@ -109,10 +206,13 @@ def _cell_pts_costs(P_pts, Q_pts, P_costs, Q_costs):
         costs = np.empty(len(Q_pts) + i, dtype=np.float_)
         for j in range(len(Q_pts)):
             s = np.array([0, delta_Q * j], dtype=np.float_)
-            costs[j] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+            costs[j] = Q_costs[j] + _cell_owp_integral(P1, u, Q1, v, b, s, t)
         for i_ in range(i):
             s = np.array([delta_P * (i_ + 1), 0], dtype=np.float_)
-            costs[len(Q_pts) + i_] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+            costs[len(Q_pts) + i_] = P_costs[i_] + _cell_owp_integral(
+                P1, u, Q1, v, b, s, t
+            )
+        new_P_costs[i] = np.min(costs)
 
     new_Q_costs[0] = P_costs[-1]
     for j in range(1, len(new_Q_costs) - 1):
@@ -120,10 +220,13 @@ def _cell_pts_costs(P_pts, Q_pts, P_costs, Q_costs):
         costs = np.empty(len(P_pts) + j, dtype=np.float_)
         for i in range(len(P_pts)):
             s = np.array([delta_P * i, 0], dtype=np.float_)
-            costs[i] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+            costs[i] = P_costs[i] + _cell_owp_integral(P1, u, Q1, v, b, s, t)
         for j_ in range(j):
             s = np.array([0, delta_Q * (j_ + 1)], dtype=np.float_)
-            costs[len(P_pts) + j_] = _cell_owp_integral(P1, u, Q1, v, b, s, t)
+            costs[len(P_pts) + j_] = Q_costs[j_] + _cell_owp_integral(
+                P1, u, Q1, v, b, s, t
+            )
+        new_Q_costs[j] = np.min(costs)
     new_Q_costs[-1] = new_P_costs[-1]
 
     return new_P_costs, new_Q_costs
