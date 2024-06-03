@@ -68,22 +68,18 @@ def ifd(P, Q, delta):
     Examples
     --------
     >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
-    1.9...
+    2.0
     """
     P = np.asarray(P, dtype=np.float_)
     Q = np.asarray(Q, dtype=np.float_)
 
     P_subedges_num, P_pts = _sample_pts(P, delta)
-    P_costs = _edge_costs(P_pts, P_subedges_num, Q[0])
-
     Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    Q_costs = _edge_costs(Q_pts, Q_subedges_num, P[0])
-
-    return _ifd(P_subedges_num, P_pts, P_costs, Q_subedges_num, Q_pts, Q_costs)
+    return _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
 
 
 @njit(cache=True)
-def _ifd(P_subedges_num, P_pts, P_costs, Q_subedges_num, Q_pts, Q_costs):
+def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
     NP = len(P_subedges_num) + 1
     P_vert_indices = np.empty(NP, dtype=np.int_)
     P_vert_indices[0] = 0
@@ -94,85 +90,132 @@ def _ifd(P_subedges_num, P_pts, P_costs, Q_subedges_num, Q_pts, Q_costs):
     Q_vert_indices[0] = 0
     Q_vert_indices[1:] = np.cumsum(Q_subedges_num)
 
-    # Instead of constructing the full steiner point arrays,
-    # update values into P_costs and Q_costs to reduce memory usage.
-    # Careful: adjacent cells share corner points (current[-1] == next[0]).
-    #
-    # Since i-loop will run in parallel, construct a table which won't change.
-    P_vert_costs = P_costs[P_vert_indices]
-    # (Don't need to construct "Q_vert_costs" here; see `q_vert_cost` below)
+    # Cost containers; elements will be updated.
+    P_costs = np.empty(len(P_pts), dtype=np.float_)
+    P_costs[0] = 0
+    Q_costs = np.empty(len(Q_pts), dtype=np.float_)
+    Q_costs[0] = 0
 
     # TODO: parallelize this i-loop.
     # Must ensure that cell (i - 1, j) is computed before (i, j).
+    p0 = P_costs[0]  # will be updated during i-loop when j == 0
     for i in range(NP - 1):
         p_pts = P_pts[P_vert_indices[i] : P_vert_indices[i + 1] + 1]
 
-        q_vert_cost = Q_costs[0]  # will be updated during j-loop
+        q0 = Q_costs[0]  # will be updated during j-loop
         for j in range(NQ - 1):
             q_pts = Q_pts[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1]
 
-            # p_costs must be constructed here to refer to the updated P_costs.
-            p_costs = np.concatenate(
-                (
-                    np.array((P_vert_costs[i],)),
-                    P_costs[P_vert_indices[i] + 1 : P_vert_indices[i + 1] + 1],
+            if j == 0:
+                p_costs = np.concatenate(
+                    (
+                        np.array((p0,)),
+                        P_costs[P_vert_indices[i] + 1 : P_vert_indices[i + 1] + 1],
+                    )
                 )
-            )
+            else:
+                p_costs = P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1]
             q_costs = np.concatenate(
                 (
-                    np.array((q_vert_cost,)),
+                    np.array((q0,)),
                     Q_costs[Q_vert_indices[j] + 1 : Q_vert_indices[j + 1] + 1],
                 )
             )
-            q_vert_cost = q_costs[-1]  # store for the next loop
 
-            _cell_owcs(
+            p1, q1 = _cell_owcs(
                 p_pts,
                 p_costs,
                 P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1],
                 q_pts,
                 q_costs,
                 Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1],
+                j == 0,
+                i == 0,
             )
+
+            # store for the next loops
+            if j == 0:
+                p0 = p1
+            q0 = q1
 
     return Q_costs[-1]
 
 
 @njit(cache=True)
-def _cell_owcs(P_pts, P_costs, P_costs_out, Q_pts, Q_costs, Q_costs_out):
+def _cell_owcs(
+    p_pts, p_costs, p_costs_out, q_pts, q_costs, q_costs_out, p_is_initial, q_is_initial
+):
     """Apply _st_owc() to border points in a cell."""
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(P_pts, Q_pts)
+    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+
+    # Cost arrays not initialized yet.
+    if p_is_initial:
+        p_costs[-1] = p_costs[0] + _line_point_integrate(p_pts[0], p_pts[-1], q_pts[0])
+    if q_is_initial:
+        q_costs[-1] = q_costs[0] + _line_point_integrate(q_pts[0], q_pts[-1], p_pts[0])
 
     # Will be reused for each border point (t) to find best starting point (s).
-    costs = np.empty(len(P_pts) + len(Q_pts) - 1, dtype=np.float_)
+    cost_candidates = np.empty(len(p_pts) + len(q_pts) - 1, dtype=np.float_)
 
-    P_costs_out[0] = Q_costs[-1]
-    for i in range(1, len(P_pts)):  # Fill P_costs_out[i]
+    p_costs_out[0] = q_costs[-1]
+    for i in range(1, len(p_pts)):  # Fill p_costs_out[i]
         t = np.array([delta_P * i, L2], dtype=np.float_)
-        for j in range(len(Q_pts)):  # let left border points be (s). (to up)
-            s = np.array([0, delta_Q * j], dtype=np.float_)
-            cost = _st_owc(P1, u, Q1, v, b, s, t)
-            costs[j] = Q_costs[j] + cost
-        for i_ in range(i):  # let bottom border points be (s). (to right)
-            s = np.array([delta_P * (i_ + 1), 0], dtype=np.float_)
-            cost = _st_owc(P1, u, Q1, v, b, s, t)
-            costs[len(Q_pts) + i_] = P_costs[i_] + cost
-        P_costs_out[i] = np.min(costs[: len(Q_pts) + i_])
+        count = 0
 
-    Q_costs_out[0] = P_costs[-1]
-    # Don't need to compute the last value (already done by P loop just above)
-    for j in range(1, len(Q_pts) - 1):
+        if q_is_initial:  # no steiner points on left boundary; just check [0, 0]
+            s = np.array([0, 0], dtype=np.float_)
+            cost = _st_owc(P1, u, Q1, v, b, s, t)
+            cost_candidates[count] = q_costs[0] + cost
+            count += 1
+        else:
+            for j in range(len(q_pts)):  # let left border points be (s). (to up)
+                s = np.array([0, delta_Q * j], dtype=np.float_)
+                cost = _st_owc(P1, u, Q1, v, b, s, t)
+                cost_candidates[count] = q_costs[j] + cost
+                count += 1
+
+        if p_is_initial:  # no steiner points on bottom boundary
+            pass  # s = [0, 0] already visited
+        else:
+            for i_ in range(i):  # let bottom border points be (s). (to right)
+                s = np.array([delta_P * (i_ + 1), 0], dtype=np.float_)
+                cost = _st_owc(P1, u, Q1, v, b, s, t)
+                cost_candidates[count] = p_costs[i_] + cost
+                count += 1
+
+        p_costs_out[i] = np.min(cost_candidates[:count])
+
+    q_costs_out[0] = p_costs[-1]
+    # Don't need to compute the last j (already done by P loop just above)
+    for j in range(1, len(q_pts) - 1):
         t = np.array([L1, delta_Q * j], dtype=np.float_)
-        for i in range(len(P_pts)):  # let down border points be (s). (to right)
-            s = np.array([delta_P * i, 0], dtype=np.float_)
+        count = 0
+
+        if p_is_initial:  # no steiner points on down boundary; just check [0, 0]
+            s = np.array([0, 0], dtype=np.float_)
             cost = _st_owc(P1, u, Q1, v, b, s, t)
-            costs[i] = P_costs[i] + cost
-        for j_ in range(j):  # let left border points be (s). (to up)
-            s = np.array([0, delta_Q * (j_ + 1)], dtype=np.float_)
-            cost = _st_owc(P1, u, Q1, v, b, s, t)
-            costs[len(P_pts) + j_] = Q_costs[j_] + cost
-        Q_costs_out[j] = np.min(costs[: len(P_pts) + j_])
-    Q_costs_out[-1] = P_costs_out[-1]
+            cost_candidates[count] = p_costs[0] + cost
+            count += 1
+        else:
+            for i in range(len(p_pts)):  # let down border points be (s). (to right)
+                s = np.array([delta_P * i, 0], dtype=np.float_)
+                cost = _st_owc(P1, u, Q1, v, b, s, t)
+                cost_candidates[count] = p_costs[i] + cost
+                count += 1
+
+        if q_is_initial:  # no steiner points on bottom boundary
+            pass  # s = [0, 0] already visited
+        else:
+            for j_ in range(j):  # let left border points be (s). (to up)
+                s = np.array([0, delta_Q * (j_ + 1)], dtype=np.float_)
+                cost = _st_owc(P1, u, Q1, v, b, s, t)
+                cost_candidates[count] = q_costs[j_] + cost
+                count += 1
+
+        q_costs_out[j] = np.min(cost_candidates[:count])
+    q_costs_out[-1] = p_costs_out[-1]
+
+    return p_costs[-1], q_costs[-1]
 
 
 @njit(cache=True)
@@ -188,7 +231,7 @@ def _st_owc(P1, u, Q1, v, b, s, t):
         cs = np.array([s[1] - b, s[1]])
     else:
         cs = np.array([s[0], s[0] + b])
-    if t[1] > t[1] + b:
+    if t[1] < t[0] + b:
         ct = np.array([t[1] - b, t[1]])
     else:
         ct = np.array([t[0], t[0] + b])
@@ -537,19 +580,20 @@ def _cell_info(P_pts, Q_pts):
     else:
         v = (Q1Q2) / L2
 
-    # Find lm: y = x + b
-    w = Q1 - P1
+    # Find lm: y = x + b.
+    # Can be acquired by finding points where distance is minimum.
+    w = P1 - Q1
+    u_dot_v = np.dot(u, v)
     if np.abs(cross2d(u, v)) > EPSILON:
-        # b = -x + y where A.[x, y] = B
-        u_dot_v = np.dot(u, v)
-        A = np.array([[1, -u_dot_v], [u_dot_v, -1]], dtype=np.float_)
-        B = np.array([-np.dot(u, w), -np.dot(v, w)], dtype=np.float_)
-        x, y = np.linalg.solve(A, B)
-        b = -x + y
+        # Find points P(s) and Q(t) where P and Q intersects.
+        # (s, t) is on y = x + b
+        A = np.array([[1, -u_dot_v], [-u_dot_v, 1]], dtype=np.float_)
+        B = np.array([-np.dot(u, w), np.dot(v, w)], dtype=np.float_)
+        s, t = np.linalg.solve(A, B)
+        b = t - s
     else:
-        # P and Q are parallel.
-        # Equations degenerate into x - y = -u.w, therefore b = u.w
-        b = np.dot(u, w)
+        # P and Q are parallel; equations degenerate into s - (u.v)t = -u.w
+        b = np.dot(u, w) / u_dot_v
 
     delta_P = L1 / (len(P_pts) - 1)
     delta_Q = L2 / (len(Q_pts) - 1)
