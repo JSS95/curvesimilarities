@@ -1,5 +1,6 @@
 import numpy as np
 
+from curvesimilarities import ifd
 from curvesimilarities.integfrechet import (
     _cell_info,
     _line_line_integrate,
@@ -24,3 +25,16 @@ def test_lm():
     P = np.array([[0.5, 0], [1, 0]], dtype=np.float_)
     Q = np.array([[0, 1], [1, 1]], dtype=np.float_)
     assert _cell_info(P, Q)[6] == 0.5
+
+
+def test_ifd():
+    assert ifd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1) == 2.0
+    assert ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1) == 2.0
+    assert ifd([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1) == 2.0
+
+    assert np.isclose(
+        ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.01), 2.0
+    )
+    ifd_fine = ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.01)
+    ifd_rough = ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
+    assert ifd_fine < ifd_rough
