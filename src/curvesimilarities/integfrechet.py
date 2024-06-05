@@ -76,22 +76,24 @@ def ifd(P, Q, delta):
     if len(P) < 2 or len(Q) < 2:
         return np.nan
 
-    # No need to add Steiner points if polyline is just a line segment.
+    # No need to add Steiner points if the other polyline is just a line segment.
     if len(Q) == 2:
+        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
         P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
         P_pts = P
     else:
-        P_subedges_num, P_pts = _sample_pts(P, delta)
+        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
     if len(P) == 2:
+        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
         Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
         Q_pts = Q
     else:
-        Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    return _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
+        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    return _ifd(P_edge_len, P_subedges_num, P_pts, Q_edge_len, Q_subedges_num, Q_pts)
 
 
 @njit(cache=True)
-def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
+def _ifd(P_edge_len, P_subedges_num, P_pts, Q_edge_len, Q_subedges_num, Q_pts):
     NP = len(P_subedges_num) + 1
     P_vert_indices = np.empty(NP, dtype=np.int_)
     P_vert_indices[0] = 0
@@ -129,9 +131,11 @@ def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
             )
 
             p1, q1 = _cell_owcs(
+                P_edge_len[i],
                 p_pts,
                 p_costs,
                 P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1],
+                Q_edge_len[j],
                 q_pts,
                 q_costs,
                 Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1],
@@ -151,9 +155,11 @@ def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
 
 @njit(cache=True)
 def _cell_owcs(
+    L1,
     p_pts,
     p_costs,
     p_costs_out,
+    L2,
     q_pts,
     q_costs,
     q_costs_out,
@@ -165,7 +171,7 @@ def _cell_owcs(
     """Apply _st_owc() to border points in a cell."""
     # p_costs = lower boundary, p_costs_out = upper boundary,
     # q_costs = left boundary, q_costs_out = right boundary of the cell.
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+    P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
 
     # Will be reused for each border point (t) to find best starting point (s).
     p_cost_candidates = np.empty(len(p_pts), dtype=np.float_)
@@ -335,21 +341,26 @@ def ifd_owp(P, Q, delta):
         return np.nan, np.empty((0, 2), dtype=np.float_)
 
     if len(Q) == 2:
+        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
         P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
         P_pts = P
     else:
-        P_subedges_num, P_pts = _sample_pts(P, delta)
+        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
     if len(P) == 2:
+        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
         Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
         Q_pts = Q
     else:
-        Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    dist, owp = _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
+        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+        _, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    dist, owp = _ifd_owp(
+        P_edge_len, P_subedges_num, P_pts, Q_edge_len, Q_subedges_num, Q_pts
+    )
     return dist, _refine_path(owp)
 
 
 @njit(cache=True)
-def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
+def _ifd_owp(P_edge_len, P_subedges_num, P_pts, Q_edge_len, Q_subedges_num, Q_pts):
     # Same as _ifd(), but stores paths so needs more memory.
     NP = len(P_subedges_num) + 1
     P_vert_indices = np.empty(NP, dtype=np.int_)
@@ -417,11 +428,13 @@ def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
             )
 
             p1_cost, p1_path, q1_cost, q1_path = _cell_owps(
+                P_edge_len[i],
                 p_pts,
                 p_costs,
                 P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1],
                 p_paths,
                 P_paths[P_vert_indices[i] : P_vert_indices[i + 1] + 1, : pc + 3],
+                Q_edge_len[j],
                 q_pts,
                 q_costs,
                 Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1],
@@ -444,11 +457,13 @@ def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
 
 @njit(cache=True)
 def _cell_owps(
+    L1,
     p_pts,
     p_costs,
     p_costs_out,
     p_paths,
     p_paths_out,
+    L2,
     q_pts,
     q_costs,
     q_costs_out,
@@ -460,7 +475,7 @@ def _cell_owps(
     q_is_last,
 ):
     """Apply _st_owp() to border points in a cell."""
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+    P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
 
     p_cost_candidates = np.empty(len(p_pts), dtype=np.float_)
     q_cost_candidates = np.empty(len(q_pts), dtype=np.float_)
@@ -649,22 +664,7 @@ def _sample_pts(vert, delta):
             pts[count + i] = P0 + (i / n) * v
         count += n
     pts[count] = vert[N - 1]
-    return subedges_num, pts
-
-
-@njit(cache=True)
-def _edge_costs(pts, subedges_num, p):
-    pts_costs = np.empty(len(pts), dtype=np.float_)
-    count = 0
-    pts_costs[0] = 0
-    for n in subedges_num:
-        a = pts[count]
-        for i in range(n):
-            b = pts[count + i + 1]
-            integ = _line_point_integrate(a, b, p)
-            pts_costs[count + i + 1] = pts_costs[count] + integ
-        count += n
-    return pts_costs
+    return edge_lens, subedges_num, pts
 
 
 @njit(cache=True)
@@ -750,7 +750,7 @@ def _line_line_integrate(a, b, c, d):
 
 
 @njit(cache=True)
-def _cell_info(P_pts, Q_pts):
+def _cell_info(P_pts, L1, Q_pts, L2):
     P1 = P_pts[0]
     P2 = P_pts[-1]
     Q1 = Q_pts[0]
@@ -758,8 +758,6 @@ def _cell_info(P_pts, Q_pts):
 
     P1P2 = P2 - P1
     Q1Q2 = Q2 - Q1
-    L1 = np.linalg.norm(P1P2)
-    L2 = np.linalg.norm(Q1Q2)
 
     if L1 < EPSILON:
         u = np.array([0, 0], np.float_)
@@ -788,7 +786,7 @@ def _cell_info(P_pts, Q_pts):
     delta_P = L1 / (len(P_pts) - 1)
     delta_Q = L2 / (len(Q_pts) - 1)
 
-    return P1, Q1, L1, L2, u, v, b, delta_P, delta_Q
+    return P1, Q1, u, v, b, delta_P, delta_Q
 
 
 @njit(cache=True)
