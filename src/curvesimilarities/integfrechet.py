@@ -318,99 +318,258 @@ def ifd_owp(P, Q, delta):
         The integral Fréchet distance between P and Q.
     owp : ndarray
         Optimal warping path.
+
+    Examples
+    --------
+    .. plot::
+        :include-source:
+
+        >>> dist, path = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
+        >>> import matplotlib.pyplot as plt #doctest: +SKIP
+        >>> plt.plot(*path.T)  #doctest: +SKIP
     """
     P = np.asarray(P, dtype=np.float_)
     Q = np.asarray(Q, dtype=np.float_)
 
-    P_subedges_num, P_pts = _sample_pts(P, delta)
-    P_costs = _edge_costs(P_pts, P_subedges_num, Q[0])
+    if len(P) < 2 or len(Q) < 2:
+        return np.nan, np.empty((0, 2), dtype=np.float_)
 
-    Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    Q_costs = _edge_costs(Q_pts, Q_subedges_num, P[0])
-
-    return _ifd_owp(P_subedges_num, P_pts, P_costs, Q_subedges_num, Q_pts, Q_costs)
+    if len(Q) == 2:
+        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
+        P_pts = P
+    else:
+        P_subedges_num, P_pts = _sample_pts(P, delta)
+    if len(P) == 2:
+        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
+        Q_pts = Q
+    else:
+        Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    return _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
 
 
 @njit(cache=True)
-def _ifd_owp(P_subedges_num, P_pts, P_costs, Q_subedges_num, Q_pts, Q_costs):
+def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
     # Same as _ifd(), but stores paths so needs more memory.
-    # NP = len(P_subedges_num) + 1
-    # P_vert_indices = np.empty(NP, dtype=np.int_)
-    # P_vert_indices[0] = 0
-    # P_vert_indices[1:] = np.cumsum(P_subedges_num)
+    NP = len(P_subedges_num) + 1
+    P_vert_indices = np.empty(NP, dtype=np.int_)
+    P_vert_indices[0] = 0
+    P_vert_indices[1:] = np.cumsum(P_subedges_num)
 
-    # NQ = len(Q_subedges_num) + 1
-    # Q_vert_indices = np.empty(NQ, dtype=np.int_)
-    # Q_vert_indices[0] = 0
-    # Q_vert_indices[1:] = np.cumsum(Q_subedges_num)
+    NQ = len(Q_subedges_num) + 1
+    Q_vert_indices = np.empty(NQ, dtype=np.int_)
+    Q_vert_indices[0] = 0
+    Q_vert_indices[1:] = np.cumsum(Q_subedges_num)
 
-    # # Path passes (NP + NQ - 1) cells, and has 4 vertices in each cell.
-    # # (our vertices are [s, cs, ct, t] or [s, c', c', t])
-    # # There are (NP + NQ - 2) boundaries between cells where vertices overlap.
-    # MAX_PATH_VERT_NUM = (NP + NQ - 1) * 4 - (NP + NQ - 2)
-    # P_paths = np.empty(
-    #     (len(P_pts), MAX_PATH_VERT_NUM, P_pts.shape[-1]), dtype=np.float_
-    # )
-    # Q_paths = np.empty(
-    #     (len(Q_pts), MAX_PATH_VERT_NUM, Q_pts.shape[-1]), dtype=np.float_
-    # )
-    ...
+    # Cost containers; elements will be updated.
+    P_costs = np.empty(len(P_pts), dtype=np.float_)
+    P_costs[0] = 0
+    Q_costs = np.empty(len(Q_pts), dtype=np.float_)
+    Q_costs[0] = 0
+
+    # Path containers; elements will be updated.
+    # Path passes (NP + NQ - 3) cells, and has 4 vertices in each cell ([s, cs, ct, t]
+    # or [s, c', c', t]). (NP + NQ - 4) vertices overlap.
+    MAX_PATH_VERT_NUM = (NP + NQ - 3) * 4 - (NP + NQ - 4)
+    P_paths = np.empty((len(P_pts), MAX_PATH_VERT_NUM, 2), dtype=np.float_)
+    P_paths[0, 0] = [0, 0]
+    Q_paths = np.empty((len(Q_pts), MAX_PATH_VERT_NUM, 2), dtype=np.float_)
+    Q_paths[0, 0] = [0, 0]
+
+    # TODO: parallelize this i-loop.
+    p0_cost = P_costs[:1]
+    p0_path = P_paths[:1, :1]
+    for i in range(NP - 1):
+        p_pts = P_pts[P_vert_indices[i] : P_vert_indices[i + 1] + 1]
+
+        q0_cost = Q_costs[:1]
+        q0_path = Q_paths[:1, : 3 * i + 1]
+        for j in range(NQ - 1):
+            q_pts = Q_pts[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1]
+
+            pc = 3 * (i + j) + 1  # path count
+            if j == 0:
+                p_costs = np.concatenate(
+                    (
+                        p0_cost,
+                        P_costs[P_vert_indices[i] + 1 : P_vert_indices[i + 1] + 1],
+                    )
+                )
+                p_paths = np.concatenate(
+                    (
+                        p0_path,
+                        P_paths[P_vert_indices[i] + 1 : P_vert_indices[i + 1] + 1, :pc],
+                    )
+                )
+            else:
+                p_costs = P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1]
+                p_paths = P_paths[P_vert_indices[i] : P_vert_indices[i + 1] + 1, :pc]
+            q_costs = np.concatenate(
+                (q0_cost, Q_costs[Q_vert_indices[j] + 1 : Q_vert_indices[j + 1] + 1])
+            )
+            q_paths = np.concatenate(
+                (
+                    q0_path,
+                    Q_paths[Q_vert_indices[j] + 1 : Q_vert_indices[j + 1] + 1, :pc],
+                )
+            )
+
+            p1_cost, p1_path, q1_cost, q1_path = _cell_owps(
+                p_pts,
+                p_costs,
+                P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1],
+                p_paths,
+                P_paths[P_vert_indices[i] : P_vert_indices[i + 1] + 1, : pc + 3],
+                q_pts,
+                q_costs,
+                Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1],
+                q_paths,
+                Q_paths[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1, : pc + 3],
+                i == 0,
+                j == 0,
+                i == NP - 2,
+                j == NQ - 2,
+            )
+
+            if j == 0:
+                p0_cost = p1_cost
+                p0_path = p1_path
+            q0_cost = q1_cost
+            q0_path = q1_path
+
+    return Q_costs[-1], Q_paths[-1]
 
 
 @njit(cache=True)
 def _cell_owps(
-    P_pts,
-    P_costs,
-    P_costs_out,
-    P_paths,
-    P_paths_out,
-    Q_pts,
-    Q_costs,
-    Q_costs_out,
-    Q_paths,
-    Q_paths_out,
+    p_pts,
+    p_costs,
+    p_costs_out,
+    p_paths,
+    p_paths_out,
+    q_pts,
+    q_costs,
+    q_costs_out,
+    q_paths,
+    q_paths_out,
+    p_is_initial,
+    q_is_initial,
+    p_is_last,
+    q_is_last,
 ):
     """Apply _st_owp() to border points in a cell."""
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(P_pts, Q_pts)
+    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
 
-    costs = np.empty(len(P_pts) + len(Q_pts) - 1, dtype=np.float_)
-    paths = np.empty((len(P_pts) + len(Q_pts) - 1, 4, 2), dtype=np.float_)
+    p_cost_candidates = np.empty(len(p_pts), dtype=np.float_)
+    q_cost_candidates = np.empty(len(q_pts), dtype=np.float_)
+    p_path_candidates = np.empty((len(p_pts), 3, 2), dtype=np.float_)
+    q_path_candidates = np.empty((len(q_pts), 3, 2), dtype=np.float_)
 
-    P_costs_out[0] = Q_costs[-1]
-    for i in range(1, len(P_pts)):
-        t = np.array([delta_P * i, L2], dtype=np.float_)
-        for j in range(len(Q_pts)):
-            s = np.array([0, delta_Q * j], dtype=np.float_)
-            cost, path = _st_owp(P1, u, Q1, v, b, s, t)
-            costs[j] = Q_costs[j] + cost
-            paths[j] = path
-        for i_ in range(i):
-            s = np.array([delta_P * (i_ + 1), 0], dtype=np.float_)
-            cost, path = _st_owp(P1, u, Q1, v, b, s, t)
-            costs[len(Q_pts) + i_] = P_costs[i_] + cost
-            paths[len(Q_pts) + i_] = path
-        min_idx = np.argmin(costs[: len(Q_pts) + i_])
-        P_costs_out[i] = costs[min_idx]
-        # TODO: P_paths_out[i] = np.concatenate([prev_P_paths[min_idx], paths[min_idx]])
+    s = np.empty((2,), dtype=np.float_)
+    t = np.empty((2,), dtype=np.float_)
 
-    Q_costs_out[0] = P_costs[-1]
-    for j in range(1, len(Q_pts) - 1):
-        t = np.array([L1, delta_Q * j], dtype=np.float_)
-        for i in range(len(P_pts)):  # let down border points be (s). (to right)
-            s = np.array([delta_P * i, 0], dtype=np.float_)
-            cost, path = _st_owp(P1, u, Q1, v, b, s, t)
-            costs[i] = P_costs[i] + cost
-            paths[i] = path
-        for j_ in range(j):  # let left border points be (s). (to up)
-            s = np.array([0, delta_Q * (j_ + 1)], dtype=np.float_)
-            cost, path = _st_owp(P1, u, Q1, v, b, s, t)
-            costs[len(P_pts) + j_] = Q_costs[j_] + cost
-            paths[len(P_pts) + j_] = path
-        min_idx = np.argmin(costs[: len(P_pts) + j_])
-        Q_costs_out[j] = costs[min_idx]
-        # TODO: Q_paths_out[j] = np.concatenate([prev_Q_paths[min_idx], paths[min_idx]])
-    Q_costs_out[-1] = P_costs_out[-1]
-    Q_paths_out[-1] = P_paths_out[-1]
+    # compute upper boundary
+    t[1] = L2
+    if q_is_last:  # No steiner points on upper boundary. Just check corner point.
+        start_idx = len(p_pts) - 1
+    else:
+        start_idx = 0
+    for i in range(start_idx, len(p_pts)):  # Fill p_costs_out[i]
+        t[0] = delta_P * i
+
+        s[0] = 0
+        if p_is_initial:  # No steiner points on left boundary; just check [0, 0]
+            q_end_idx = 1
+        else:
+            q_end_idx = len(q_pts)
+        for j in range(0, q_end_idx):
+            s[1] = delta_Q * j
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            q_cost_candidates[j] = q_costs[j] + cost
+            q_path_candidates[j] = vert[1:] - vert[0]
+
+        s[1] = 0
+        if q_is_initial:  # No steiner points on bottom boundary; just check [0, 0]
+            p_end_idx = 1
+        else:
+            p_end_idx = i + 1
+        p_cost_candidates[0] = q_cost_candidates[0]  # cost from [0, 0] already known.
+        p_path_candidates[0] = q_path_candidates[0]  # path from [0, 0] already known.
+        for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
+            s[0] = delta_P * i_
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            p_cost_candidates[i_] = p_costs[i_] + cost
+            p_path_candidates[i_] = vert[1:] - vert[0]
+
+        p_min_idx = np.argmin(p_cost_candidates[:p_end_idx])
+        q_min_idx = np.argmin(q_cost_candidates[:q_end_idx])
+        from_p_mincost = p_cost_candidates[p_min_idx]
+        from_q_mincost = q_cost_candidates[q_min_idx]
+        if from_p_mincost > from_q_mincost:
+            mincost = from_q_mincost
+            prevpath = q_paths[q_min_idx]
+            minpath = q_path_candidates[q_min_idx]
+        else:
+            mincost = from_p_mincost
+            prevpath = p_paths[p_min_idx]
+            minpath = p_path_candidates[p_min_idx]
+        p_costs_out[i] = mincost
+        p_paths_out[i, :-3] = prevpath
+        p_paths_out[i, -3:] = prevpath[-1] + minpath
+
+    # compute right boundary
+    t[0] = L1
+    if p_is_last:  # No steiner points on right boundary. Just check corner point.
+        start_idx = len(q_pts) - 1
+    else:
+        start_idx = 0
+    # Don't need to compute the last j (already done by P loop just above)
+    for j in range(start_idx, len(q_pts) - 1):
+        t[1] = delta_Q * j
+
+        s[1] = 0
+        if q_is_initial:  # No steiner points on bottom boundary; just check [0, 0]
+            p_end_idx = 1
+        else:
+            p_end_idx = len(p_pts)
+        for i in range(0, p_end_idx):
+            s[0] = delta_P * i
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            p_cost_candidates[i] = p_costs[i] + cost
+            p_path_candidates[i] = vert[1:] - vert[0]
+
+        s[0] = 0
+        if p_is_initial:  # No steiner points on left boundary; just check [0, 0]
+            q_end_idx = 1
+        else:
+            q_end_idx = j + 1
+        q_cost_candidates[0] = p_cost_candidates[0]  # cost from [0, 0] already known.
+        q_path_candidates[0] = p_path_candidates[0]  # path from [0, 0] already known.
+        for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
+            s[1] = delta_Q * j_
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            q_cost_candidates[j_] = q_costs[j_] + cost
+            q_path_candidates[j_] = vert[1:] - vert[0]
+
+        p_min_idx = np.argmin(p_cost_candidates[:p_end_idx])
+        q_min_idx = np.argmin(q_cost_candidates[:q_end_idx])
+        from_p_mincost = p_cost_candidates[p_min_idx]
+        from_q_mincost = q_cost_candidates[q_min_idx]
+        if from_p_mincost > from_q_mincost:
+            mincost = from_q_mincost
+            prevpath = q_paths[q_min_idx]
+            minpath = q_path_candidates[q_min_idx]
+        else:
+            mincost = from_p_mincost
+            prevpath = p_paths[p_min_idx]
+            minpath = p_path_candidates[p_min_idx]
+        q_costs_out[j] = mincost
+        q_paths_out[j, :-3] = prevpath
+        q_paths_out[j, -3:] = prevpath[-1] + minpath
+
+    q_costs_out[-1] = p_costs_out[-1]
+    q_paths_out[-1] = p_paths_out[-1]
+
+    return q_costs_out[:1], q_paths_out[:1], p_costs_out[:1], p_paths_out[:1]
 
 
 @njit(cache=True)
@@ -426,7 +585,7 @@ def _st_owp(P1, u, Q1, v, b, s, t):
         cs = np.array([s[1] - b, s[1]])
     else:
         cs = np.array([s[0], s[0] + b])
-    if t[1] > t[1] + b:
+    if t[1] < t[0] + b:
         ct = np.array([t[1] - b, t[1]])
     else:
         ct = np.array([t[0], t[0] + b])
@@ -471,9 +630,7 @@ def _st_owp(P1, u, Q1, v, b, s, t):
 @njit(cache=True)
 def _sample_pts(vert, delta):
     N, D = vert.shape
-    vert_diff = np.empty((N - 1, D), dtype=np.float_)
-    for i in range(N - 1):
-        vert_diff[i] = vert[i + 1] - vert[i]
+    vert_diff = vert[1:] - vert[:-1]
     edge_lens = np.empty(N - 1, dtype=np.float_)
     for i in range(N - 1):
         edge_lens[i] = np.linalg.norm(vert_diff[i])

@@ -1,6 +1,6 @@
 import numpy as np
 
-from curvesimilarities import ifd
+from curvesimilarities import ifd, ifd_owp
 from curvesimilarities.integfrechet import (
     _cell_info,
     _line_line_integrate,
@@ -37,4 +37,17 @@ def test_ifd():
     )
     ifd_fine = ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.01)
     ifd_rough = ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
+    assert ifd_fine < ifd_rough
+
+
+def test_ifd_owp():
+    assert ifd_owp([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)[0] == 2.0
+    assert ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)[0] == 2.0
+    assert ifd_owp([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)[0] == 2.0
+
+    assert np.isclose(
+        ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.01)[0], 2.0
+    )
+    ifd_fine = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.01)[0]
+    ifd_rough = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)[0]
     assert ifd_fine < ifd_rough
