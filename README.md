@@ -9,6 +9,12 @@
 
 Curve similarity measures, implemented using Numba.
 
+List of supported measures:
+- Dynamic time warping distance (`dtw()`)
+- (Continuous) Fréchet distance (`fd()`)
+- Discrete Fréchet distance (`dfd()`)
+- Integral Fréchet distance (`ifd()`)
+
 ## Usage
 
 ```python
