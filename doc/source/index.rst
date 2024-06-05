@@ -36,3 +36,9 @@ curvesimilarities.integfrechet
 
 .. automodule:: curvesimilarities.integfrechet
     :members:
+
+curvesimilarities.averagefrechet
+--------------------------------
+
+.. automodule:: curvesimilarities.averagefrechet
+    :members:

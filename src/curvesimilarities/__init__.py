@@ -1,5 +1,6 @@
 """Curve similarity measures."""
 
+from .averagefrechet import afd
 from .dtw import dtw, dtw_acm, dtw_owp
 from .frechet import dfd, fd
 from .integfrechet import ifd, ifd_owp
@@ -12,4 +13,5 @@ __all__ = [
     "dtw_owp",
     "ifd",
     "ifd_owp",
+    "afd",
 ]
