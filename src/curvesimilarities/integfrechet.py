@@ -344,7 +344,8 @@ def ifd_owp(P, Q, delta):
         Q_pts = Q
     else:
         Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    return _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
+    dist, owp = _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
+    return dist, _refine_path(owp)
 
 
 @njit(cache=True)
@@ -788,3 +789,18 @@ def _cell_info(P_pts, Q_pts):
     delta_Q = L2 / (len(Q_pts) - 1)
 
     return P1, Q1, L1, L2, u, v, b, delta_P, delta_Q
+
+
+@njit(cache=True)
+def _refine_path(path):
+    prev = path[0]
+    count = 1
+    for i in range(1, len(path)):
+        current = path[i]
+        if np.all(prev == current):
+            continue
+        else:
+            path[count] = current
+            prev = current
+            count += 1
+    return path[:count]
