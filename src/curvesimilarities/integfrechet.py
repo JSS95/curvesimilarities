@@ -123,7 +123,7 @@ def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
                     (p0, P_costs[P_vert_indices[i] + 1 : P_vert_indices[i + 1] + 1])
                 )
             else:
-                p_costs = P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1]
+                p_costs = P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1].copy()
             q_costs = np.concatenate(
                 (q0, Q_costs[Q_vert_indices[j] + 1 : Q_vert_indices[j + 1] + 1])
             )
@@ -401,8 +401,10 @@ def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
                     )
                 )
             else:
-                p_costs = P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1]
-                p_paths = P_paths[P_vert_indices[i] : P_vert_indices[i + 1] + 1, :pc]
+                p_costs = P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1].copy()
+                p_paths = P_paths[
+                    P_vert_indices[i] : P_vert_indices[i + 1] + 1, :pc
+                ].copy()
             q_costs = np.concatenate(
                 (q0_cost, Q_costs[Q_vert_indices[j] + 1 : Q_vert_indices[j + 1] + 1])
             )
