@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Average Fréchet distance.
 - Quadratic average Fréchet distance.
+- Squared dynamic time warping.
 
 ### Changed
 

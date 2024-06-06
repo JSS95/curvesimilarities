@@ -12,6 +12,8 @@ from scipy.spatial.distance import cdist
 __all__ = [
     "dtw",
     "dtw_owp",
+    "sdtw",
+    "sdtw_owp",
 ]
 
 
@@ -105,9 +107,91 @@ def dtw_owp(P, Q):
         >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
     if len(P) == 0 or len(Q) == 0:
-        return np.nan
+        return np.nan, np.empty((0, 2), dtype=np.int_)
     dist = cdist(P, Q)
     acm = _dtw_acm(dist)
+    return acm[-1, -1], _dtw_owp(acm)
+
+
+def sdtw(P, Q):
+    r"""Squared dynamic time warping distance.
+
+    The squared dynamic time warping distance is defined as
+
+    .. math::
+
+        \min_{C} \sum_{(i, j) \in C} \lVert P_i - Q_j \rVert^2,
+
+    with symbols explained in :func:`dtw`.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+
+    Returns
+    -------
+    dist : double
+        The squared dynamic time warping distance between P and Q.
+
+    See Also
+    --------
+    dtw : Dynamic time warping distance.
+    sdtw_owp : Squared dynamic time warping distance with optimal warping path.
+
+    Examples
+    --------
+    >>> P = np.linspace([0, 0], [1, 0], 10)
+    >>> Q = np.linspace([0, 1], [1, 1], 20)
+    >>> sdtw(P, Q)
+    20.0...
+    """
+    if len(P) == 0 or len(Q) == 0:
+        return np.nan
+    dist = cdist(P, Q)
+    return _dtw_acm(dist**2)[-1, -1]
+
+
+def sdtw_owp(P, Q):
+    """Squared dynamic time warping distance and its optimal warping path.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+
+    Returns
+    -------
+    dist : double
+        The squared dynamic time warping distance between P and Q.
+    owp : ndarray
+        Indices of P and Q for optimal warping path.
+
+    Examples
+    --------
+    .. plot::
+        :include-source:
+
+        >>> P = np.linspace([0, 0], [1, 0], 10)
+        >>> Q = np.linspace([0, 1], [1, 1], 20)
+        >>> dist, path = sdtw_owp(P, Q)
+        >>> (dist / len(path))**0.5  # quadratic mean dynamic time warping
+        1.00...
+        >>> import matplotlib.pyplot as plt #doctest: +SKIP
+        >>> plt.plot(*path.T, "x")  #doctest: +SKIP
+    """
+    if len(P) == 0 or len(Q) == 0:
+        return np.nan, np.empty((0, 2), dtype=np.int_)
+    dist = cdist(P, Q)
+    acm = _dtw_acm(dist**2)
     return acm[-1, -1], _dtw_owp(acm)
 
 
@@ -131,12 +215,12 @@ def _dtw_acm(cm):
 @njit(cache=True)
 def _dtw_owp(acm):
     p, q = acm.shape
-    path = np.empty((p + q - 1, 2), dtype=np.int32)
-    path_len = np.int32(0)
+    path = np.empty((p + q - 1, 2), dtype=np.int_)
+    path_len = np.int_(0)
 
     i, j = p - 1, q - 1
     path[path_len] = [i, j]
-    path_len += np.int32(1)
+    path_len += np.int_(1)
 
     while i > 0 or j > 0:
         if i == 0:
@@ -154,5 +238,5 @@ def _dtw_owp(acm):
                 j -= 1
 
         path[path_len] = [i, j]
-        path_len += np.int32(1)
+        path_len += np.int_(1)
     return path[-(len(path) - path_len + 1) :: -1, :]
