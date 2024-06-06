@@ -214,7 +214,7 @@ def qafd(P, Q, delta):
         \inf_{\pi}
         \sqrt{
         \int_0^1
-        \delta\left(\pi(t)\right) \cdot
+        \delta\left(\pi(t)\right)^2 \cdot
         \lVert \pi'(t) \rVert
         \mathrm{d}t
         },
@@ -241,6 +241,11 @@ def qafd(P, Q, delta):
     --------
     afd : Average Fréchet distance.
     qafd_owp : Quadratic average Fréchet distance with optimal warping path.
+
+    Examples
+    --------
+    >>> qafd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    1.0
     """
     P = np.asarray(P, dtype=np.float_)
     Q = np.asarray(Q, dtype=np.float_)
