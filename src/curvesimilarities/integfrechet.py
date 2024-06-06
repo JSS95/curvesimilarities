@@ -1,5 +1,7 @@
 """Integral Fréchet distance."""
 
+import functools
+
 import numpy as np
 from numba import njit
 from numba.np.extensions import cross2d
@@ -15,7 +17,32 @@ __all__ = [
 EPSILON = np.finfo(np.float_).eps
 
 
+def sanitize_vertices_ifd(owp):
+    """Decorator to sanitize the vertices for IFD and its variants.
+
+    The integral-based Fréchet distance variants must return NaN for two
+    degenerate curves with zero-lengths to avoid returning false zero-value.
+    Use this decorator with :func:`sanitize_vertices`.
+    """
+
+    def decorator(func):
+
+        @functools.wraps(func)
+        def wrapper(P, Q, *args, **kwargs):
+            if len(P) == 1 and len(Q) == 1:
+                if owp:
+                    return np.float_(np.nan), np.empty((0, 2), dtype=np.int_)
+                else:
+                    return np.float_(np.nan)
+            return func(P, Q, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 @sanitize_vertices(owp=False)
+@sanitize_vertices_ifd(owp=False)
 def ifd(P, Q, delta):
     r"""Integral Fréchet distance between two open polygonal curves.
 
@@ -53,7 +80,7 @@ def ifd(P, Q, delta):
     -------
     dist : double
         The integral Fréchet distance between *P* and *Q*, NaN if any vertice
-        is empty.
+        is empty or both vertices consist of a single point.
 
     Raises
     ------
@@ -79,31 +106,8 @@ def ifd(P, Q, delta):
     >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     2.0
     """
-    if len(P) < 2 or len(Q) < 2:
-        return np.nan
-
-    # No need to add Steiner points if the other polyline is just a line segment.
-    if len(Q) == 2:
-        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
-        P_pts = P
-    else:
-        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
-    if len(P) == 2:
-        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
-        Q_pts = Q
-    else:
-        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
     return _ifd(
-        P_edge_len,
-        P_subedges_num,
-        P_pts,
-        Q_edge_len,
-        Q_subedges_num,
-        Q_pts,
-        _line_point_integrate,
-        _line_line_integrate,
+        *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
     )
 
 
@@ -283,6 +287,7 @@ def _cell_owcs(
 
 
 @sanitize_vertices(owp=True)
+@sanitize_vertices_ifd(owp=True)
 def ifd_owp(P, Q, delta):
     """Integral Fréchet distance and its optimal warping path.
 
@@ -301,9 +306,10 @@ def ifd_owp(P, Q, delta):
     -------
     dist : double
         The integral Fréchet distance between *P* and *Q*, NaN if any vertice
-        is empty.
+        is empty or both vertices consist of a single point.
     owp : ndarray
-        Optimal warping path, empty if any vertice is empty.
+        Optimal warping path, empty if any vertice is empty or both vertices
+        consist of a single point.
 
     Raises
     ------
@@ -319,31 +325,8 @@ def ifd_owp(P, Q, delta):
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T)  #doctest: +SKIP
     """
-    if len(P) < 2 or len(Q) < 2:
-        return np.nan, np.empty((0, 2), dtype=np.float_)
-
-    if len(Q) == 2:
-        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
-        P_pts = P
-    else:
-        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
-    if len(P) == 2:
-        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
-        Q_pts = Q
-    else:
-        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-        _, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
     dist, owp = _ifd_owp(
-        P_edge_len,
-        P_subedges_num,
-        P_pts,
-        Q_edge_len,
-        Q_subedges_num,
-        Q_pts,
-        _line_point_integrate,
-        _line_line_integrate,
+        *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
     )
     return dist, _refine_path(owp)
 
@@ -641,6 +624,30 @@ def _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost):
         # Force len=4 because homogeneous output type is easier to handle
         verts = np.stack((s, c_prime, c_prime, t))
     return verts, cost
+
+
+def _sample_ifd_pts(P, Q, delta):
+    # No need to add Steiner points if the other polyline is just a line segment.
+    if len(Q) == 2:
+        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
+        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
+        P_pts = P
+    else:
+        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
+    if len(P) == 2:
+        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
+        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
+        Q_pts = Q
+    else:
+        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    return (
+        P_edge_len,
+        P_subedges_num,
+        P_pts,
+        Q_edge_len,
+        Q_subedges_num,
+        Q_pts,
+    )
 
 
 @njit(cache=True)

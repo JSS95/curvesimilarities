@@ -22,7 +22,7 @@ def sanitize_vertices(owp):
             if P.shape[1] != Q.shape[1]:
                 raise ValueError("P and Q must have the same number of columns.")
 
-            if len(P) == 0 or len(Q) == 0:
+            if P.size == 0 or Q.size == 0:
                 if owp:
                     return np.float_(np.nan), np.empty((0, 2), dtype=np.int_)
                 else:

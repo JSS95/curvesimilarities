@@ -9,8 +9,9 @@ from .integfrechet import (
     _line_line_integrate,
     _line_point_integrate,
     _refine_path,
-    _sample_pts,
+    _sample_ifd_pts,
     ifd_owp,
+    sanitize_vertices_ifd,
 )
 from .util import sanitize_vertices
 
@@ -26,6 +27,7 @@ EPSILON = np.finfo(np.float_).eps
 
 
 @sanitize_vertices(owp=False)
+@sanitize_vertices_ifd(owp=False)
 def afd(P, Q, delta):
     r"""Average Fréchet distance between two open polygonal curves.
 
@@ -72,7 +74,7 @@ def afd(P, Q, delta):
     -------
     dist : double
         The average Fréchet distance between *P* and *Q*, NaN if any vertice
-        is empty.
+        is empty or both vertices consist of a single point.
 
     Raises
     ------
@@ -99,22 +101,14 @@ def afd(P, Q, delta):
     >>> afd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     1.0
     """
-    if len(P) < 2 or len(Q) < 2:
-        return np.nan
-
-    # No need to add Steiner points if the other polyline is just a line segment.
-    if len(Q) == 2:
-        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
-        P_pts = P
-    else:
-        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
-    if len(P) == 2:
-        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
-        Q_pts = Q
-    else:
-        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    (
+        P_edge_len,
+        P_subedges_num,
+        P_pts,
+        Q_edge_len,
+        Q_subedges_num,
+        Q_pts,
+    ) = _sample_ifd_pts(P, Q, delta)
     ifd = _ifd(
         P_edge_len,
         P_subedges_num,
@@ -129,6 +123,7 @@ def afd(P, Q, delta):
 
 
 @sanitize_vertices(owp=True)
+@sanitize_vertices_ifd(owp=True)
 def afd_owp(P, Q, delta):
     """Average Fréchet distance and its optimal warping path.
 
@@ -147,9 +142,10 @@ def afd_owp(P, Q, delta):
     -------
     dist : double
         The average Fréchet distance between *P* and *Q*, NaN if any vertice
-        is empty.
+        is empty or both vertices consist of a single point.
     owp : ndarray
-        Optimal warping path, empty if any vertice is empty.
+        Optimal warping path, empty if any vertice is empty or both vertices
+        consist of a single point.
 
     Raises
     ------
@@ -170,6 +166,7 @@ def afd_owp(P, Q, delta):
 
 
 @sanitize_vertices(owp=False)
+@sanitize_vertices_ifd(owp=False)
 def qafd(P, Q, delta):
     r"""Quadratic average Fréchet distance between two open polygonal curves.
 
@@ -222,7 +219,7 @@ def qafd(P, Q, delta):
     -------
     dist : double
         The quadratic average Fréchet distance between *P* and *Q*, NaN if any
-        vertice is empty.
+        vertice is empty or both vertices consist of a single point.
 
     Raises
     ------
@@ -239,22 +236,14 @@ def qafd(P, Q, delta):
     >>> qafd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     1.0
     """
-    if len(P) < 2 or len(Q) < 2:
-        return np.nan
-
-    # No need to add Steiner points if the other polyline is just a line segment.
-    if len(Q) == 2:
-        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
-        P_pts = P
-    else:
-        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
-    if len(P) == 2:
-        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
-        Q_pts = Q
-    else:
-        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    (
+        P_edge_len,
+        P_subedges_num,
+        P_pts,
+        Q_edge_len,
+        Q_subedges_num,
+        Q_pts,
+    ) = _sample_ifd_pts(P, Q, delta)
     square_ifd = _ifd(
         P_edge_len,
         P_subedges_num,
@@ -269,6 +258,7 @@ def qafd(P, Q, delta):
 
 
 @sanitize_vertices(owp=True)
+@sanitize_vertices_ifd(owp=True)
 def qafd_owp(P, Q, delta):
     """Quadratic average Fréchet distance and its optimal warping path.
 
@@ -287,9 +277,10 @@ def qafd_owp(P, Q, delta):
     -------
     dist : double
         The quadratic average Fréchet distance between *P* and *Q*, NaN if any
-        vertice is empty.
+        vertice is empty or both vertices consist of a single point.
     owp : ndarray
-        Optimal warping path, empty if any vertice is empty.
+        Optimal warping path, empty if any vertice is empty or both vertices
+        consist of a single point.
 
     Raises
     ------
@@ -305,22 +296,14 @@ def qafd_owp(P, Q, delta):
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T)  #doctest: +SKIP
     """
-    if len(P) < 2 or len(Q) < 2:
-        return np.nan, np.empty((0, 2), dtype=np.float_)
-
-    if len(Q) == 2:
-        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
-        P_pts = P
-    else:
-        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
-    if len(P) == 2:
-        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
-        Q_pts = Q
-    else:
-        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-        _, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    (
+        P_edge_len,
+        P_subedges_num,
+        P_pts,
+        Q_edge_len,
+        Q_subedges_num,
+        Q_pts,
+    ) = _sample_ifd_pts(P, Q, delta)
     dist, path = _ifd_owp(
         P_edge_len,
         P_subedges_num,

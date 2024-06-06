@@ -1,6 +1,17 @@
 import numpy as np
+from scipy.spatial.distance import cdist
 
-from curvesimilarities.frechet import _decision_problem
+from curvesimilarities.frechet import _decision_problem, fd
+
+
+def test_fd_degenerate():
+
+    def check(P, Q):
+        assert fd(P, Q) == np.max(cdist(P, Q))
+
+    check([[0, 0]], [[0, 1]])
+    check([[0, 0], [1, 0]], [[0, 1]])
+    check([[0, 0]], [[0, 1], [1, 1]])
 
 
 def test_decision_problem():
