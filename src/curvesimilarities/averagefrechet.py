@@ -10,6 +10,7 @@ from .integfrechet import (
     _line_point_integrate,
     _refine_path,
     _sample_pts,
+    ifd_owp,
 )
 
 __all__ = [
@@ -152,36 +153,8 @@ def afd_owp(P, Q, delta):
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T)  #doctest: +SKIP
     """
-    P = np.asarray(P, dtype=np.float_)
-    Q = np.asarray(Q, dtype=np.float_)
-
-    if len(P) < 2 or len(Q) < 2:
-        return np.nan, np.empty((0, 2), dtype=np.float_)
-
-    if len(Q) == 2:
-        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-        P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
-        P_pts = P
-    else:
-        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
-    if len(P) == 2:
-        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-        Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
-        Q_pts = Q
-    else:
-        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-        _, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    dist, owp = _ifd_owp(
-        P_edge_len,
-        P_subedges_num,
-        P_pts,
-        Q_edge_len,
-        Q_subedges_num,
-        Q_pts,
-        _line_point_integrate,
-        _line_line_integrate,
-    )
-    return dist / (np.sum(P_edge_len) + np.sum(Q_edge_len)), _refine_path(owp)
+    dist, path = ifd_owp(P, Q, delta)
+    return dist / np.sum(path[-1]), path
 
 
 def qafd(P, Q, delta):
@@ -328,7 +301,7 @@ def qafd_owp(P, Q, delta):
     else:
         Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
         _, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    dist, owp = _ifd_owp(
+    dist, path = _ifd_owp(
         P_edge_len,
         P_subedges_num,
         P_pts,
@@ -338,7 +311,7 @@ def qafd_owp(P, Q, delta):
         _line_point_square_integrate,
         _line_line_square_integrate,
     )
-    return np.sqrt(dist / (np.sum(P_edge_len) + np.sum(Q_edge_len))), _refine_path(owp)
+    return np.sqrt(dist / np.sum(path[-1])), _refine_path(path)
 
 
 @njit(cache=True)
