@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Average Fréchet distance.
 - Quadratic average Fréchet distance.
 
+### Changed
+
+- `dtw_owp()` now returns both the distance and the optimal warping path.
+
+### Removed
+
+- `dtw_acm()` is removed.
+
 ## [0.1.2] - 2024-06-05
 
 ### Added

@@ -70,6 +70,11 @@ def afd(P, Q, delta):
     dist : double
         The average Fréchet distance between P and Q.
 
+    See Also
+    --------
+    ifd : Integral Fréchet distance.
+    afd_owp : Average Fréchet distance with optimal warping path.
+
     Notes
     -----
     Using this function is marginally faster than calling :func:`~.ifd` and then
@@ -79,11 +84,6 @@ def afd(P, Q, delta):
     ----------
     .. [#] Buchin, M. E. On the computability of the Fréchet distance between
        triangulated surfaces. Diss. 2007.
-
-    See Also
-    --------
-    ifd : Integral Fréchet distance.
-    afd_owp : Average Fréchet distance with optimal warping path.
 
     Examples
     --------
