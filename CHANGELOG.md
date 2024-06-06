@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Average Fréchet distance.
+- Quadratic average Fréchet distance.
 
 ## [0.1.2] - 2024-06-05
 
