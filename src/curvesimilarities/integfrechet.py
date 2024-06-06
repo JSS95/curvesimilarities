@@ -51,6 +51,10 @@ def ifd(P, Q, delta):
     dist : double
         The integral Fréchet distance between P and Q.
 
+    See Also
+    --------
+    ifd_owp : Integral Fréchet distance with optimal warping path.
+
     Notes
     -----
     This function implements the algorithm of Brankovic et al [#]_.
@@ -60,10 +64,6 @@ def ifd(P, Q, delta):
     .. [#] Brankovic, M., et al. "(k, l)-Medians Clustering of Trajectories Using
        Continuous Dynamic Time Warping." Proceedings of the 28th International
        Conference on Advances in Geographic Information Systems. 2020.
-
-    See Also
-    --------
-    ifd_owp : Integral Fréchet distance with optimal warping path.
 
     Examples
     --------

@@ -1,8 +1,8 @@
 """Dynamic time warping.
 
-This module implements only the basic algorithms.
-If you need advanced features, use dedicated package such as
-`dtw-python <https://pypi.org/project/dtw-python/>`_ instead.
+This module implements only the basic algorithm. If you need advanced features, use
+dedicated packages such as `dtw-python
+<https://pypi.org/project/dtw-python/>`_.
 """
 
 import numpy as np
@@ -11,7 +11,6 @@ from scipy.spatial.distance import cdist
 
 __all__ = [
     "dtw",
-    "dtw_acm",
     "dtw_owp",
 ]
 
@@ -46,43 +45,13 @@ def dtw(P, Q):
     dist : double
         The dynamic time warping distance between P and Q.
 
-    Raises
-    ------
-    ValueError
-        An exception is thrown if empty array is passed.
-
     See Also
     --------
-    dtw_owp : Optimal warping path.
-
-    Examples
-    --------
-    >>> dtw([[0, 0], [1, 1], [2, 0]], [[0, 1], [2, -4], [3, 2]])
-    8.23...
-    """
-    if len(P) == 0 or len(Q) == 0:
-        raise ValueError("Vertices must not be empty.")
-    dist = cdist(P, Q)
-    return dtw_acm(dist)[-1, -1]
-
-
-@njit(cache=True)
-def dtw_acm(cm):
-    """Accumulated cost matrix for dynamic time warping.
-
-    Parameters
-    ----------
-    cm : ndarray
-        2D local cost matrix.
-
-    Returns
-    -------
-    acm : ndarray
-        2D accumulated cost matrix.
+    dtw_owp : Dynamic time warping distance with optimal warping path.
 
     Notes
     -----
-    This function implements the algorithm described Senin [#]_.
+    This function implements the algorithm described by Senin [#]_.
 
     References
     ----------
@@ -92,18 +61,59 @@ def dtw_acm(cm):
 
     Examples
     --------
+    >>> P = np.linspace([0, 0], [1, 0], 10)
+    >>> Q = np.linspace([0, 1], [1, 1], 20)
+    >>> dtw(P, Q)
+    20.0...
+    """
+    if len(P) == 0 or len(Q) == 0:
+        return np.nan
+    dist = cdist(P, Q)
+    return _dtw_acm(dist)[-1, -1]
+
+
+def dtw_owp(P, Q):
+    """Dynamic time warping distance and its optimal warping path.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+
+    Returns
+    -------
+    dist : double
+        The dynamic time warping distance between P and Q.
+    owp : ndarray
+        Indices of P and Q for optimal warping path.
+
+    Examples
+    --------
     .. plot::
         :include-source:
 
-        >>> from scipy.spatial.distance import cdist
-        >>> t, s = np.linspace(0, 2 * np.pi, 100), np.linspace(0, 2, 200)
-        >>> P = np.asarray([t, np.sin(t)]).T
-        >>> Q = np.asarray([np.zeros(len(s)), s]).T
-        >>> cm = cdist(P, Q)
-        >>> acm = dtw_acm(cm)
+        >>> P = np.linspace([0, 0], [1, 0], 10)
+        >>> Q = np.linspace([0, 1], [1, 1], 20)
+        >>> dist, path = dtw_owp(P, Q)
+        >>> dist / len(path)  # averaged dynamic time warping
+        1.00...
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
-        >>> plt.pcolormesh(acm.T)  #doctest: +SKIP
+        >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
+    if len(P) == 0 or len(Q) == 0:
+        return np.nan
+    dist = cdist(P, Q)
+    acm = _dtw_acm(dist)
+    return acm[-1, -1], _dtw_owp(acm)
+
+
+@njit(cache=True)
+def _dtw_acm(cm):
+    """Accumulated cost matrix for dynamic time warping."""
     p, q = cm.shape
     ret = np.empty((p, q), dtype=np.float_)
 
@@ -119,49 +129,7 @@ def dtw_acm(cm):
 
 
 @njit(cache=True)
-def dtw_owp(acm):
-    """Optimal warping path for dynamic time warping.
-
-    Parameters
-    ----------
-    acm : ndarray
-        Accumulated cost matrix.
-
-    Returns
-    -------
-    owp : ndarray
-        Indices of optimal warping path.
-
-    See Also
-    --------
-    dtw_acm : Accumulated cost matrix.
-
-    Notes
-    -----
-    This function implements the algorithm described Senin [#]_.
-
-    References
-    ----------
-    .. [#] Senin, P. (2008). Dynamic time warping algorithm review. Information
-        and Computer Science Department University of Hawaii at Manoa Honolulu,
-        USA, 855(1-23), 40.
-
-    Examples
-    --------
-    .. plot::
-        :include-source:
-
-        >>> from scipy.spatial.distance import cdist
-        >>> t, s = np.linspace(0, 2 * np.pi, 100), np.linspace(0, 2, 200)
-        >>> P = np.asarray([t, np.sin(t)]).T
-        >>> Q = np.asarray([np.zeros(len(s)), s]).T
-        >>> cm = cdist(P, Q)
-        >>> acm = dtw_acm(cm)
-        >>> owp = dtw_owp(acm)
-        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-        >>> plt.pcolormesh(acm.T)  #doctest: +SKIP
-        >>> plt.plot(owp[:, 0], owp[:, 1], color="r")  #doctest: +SKIP
-    """
+def _dtw_owp(acm):
     p, q = acm.shape
     path = np.empty((p + q - 1, 2), dtype=np.int32)
     path_len = np.int32(0)
@@ -187,5 +155,4 @@ def dtw_owp(acm):
 
         path[path_len] = [i, j]
         path_len += np.int32(1)
-
     return path[-(len(path) - path_len + 1) :: -1, :]
