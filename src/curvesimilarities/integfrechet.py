@@ -32,8 +32,8 @@ def ifd(P, Q, delta):
     where :math:`\delta\left(\pi(t)\right)` is a distance between
     :math:`f\left(\alpha(t)\right)` and :math:`g\left(\beta(t)\right)` in
     :math:`\Omega` and :math:`\lVert \cdot \rVert` is a norm in :math:`[0, 1]
-    \times [0, 1]`. In this implementation, we choose the Euclidean distance
-    as :math:`\delta` and the Manhattan norm as :math:`\lVert \cdot \rVert`.
+    \times [0, 1]`. In this implementation, we use the Euclidean distance
+    for :math:`\delta` and the Manhattan norm for :math:`\lVert \cdot \rVert`.
 
     Parameters
     ----------
@@ -76,22 +76,42 @@ def ifd(P, Q, delta):
     if len(P) < 2 or len(Q) < 2:
         return np.nan
 
-    # No need to add Steiner points if polyline is just a line segment.
+    # No need to add Steiner points if the other polyline is just a line segment.
     if len(Q) == 2:
+        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
         P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
         P_pts = P
     else:
-        P_subedges_num, P_pts = _sample_pts(P, delta)
+        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
     if len(P) == 2:
+        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
         Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
         Q_pts = Q
     else:
-        Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    return _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
+        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    return _ifd(
+        P_edge_len,
+        P_subedges_num,
+        P_pts,
+        Q_edge_len,
+        Q_subedges_num,
+        Q_pts,
+        _line_point_integrate,
+        _line_line_integrate,
+    )
 
 
 @njit(cache=True)
-def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
+def _ifd(
+    P_edge_len,
+    P_subedges_num,
+    P_pts,
+    Q_edge_len,
+    Q_subedges_num,
+    Q_pts,
+    line_point_cost,
+    line_line_cost,
+):
     NP = len(P_subedges_num) + 1
     P_vert_indices = np.empty(NP, dtype=np.int_)
     P_vert_indices[0] = 0
@@ -129,9 +149,11 @@ def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
             )
 
             p1, q1 = _cell_owcs(
+                P_edge_len[i],
                 p_pts,
                 p_costs,
                 P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1],
+                Q_edge_len[j],
                 q_pts,
                 q_costs,
                 Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1],
@@ -139,6 +161,8 @@ def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
                 j == 0,
                 i == NP - 2,
                 j == NQ - 2,
+                line_point_cost,
+                line_line_cost,
             )
 
             # store for the next loops
@@ -151,9 +175,11 @@ def _ifd(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
 
 @njit(cache=True)
 def _cell_owcs(
+    L1,
     p_pts,
     p_costs,
     p_costs_out,
+    L2,
     q_pts,
     q_costs,
     q_costs_out,
@@ -161,11 +187,13 @@ def _cell_owcs(
     q_is_initial,
     p_is_last,
     q_is_last,
+    line_point_cost,
+    line_line_cost,
 ):
-    """Apply _st_owc() to border points in a cell."""
+    """Optimal warping costs for all points in an cell."""
     # p_costs = lower boundary, p_costs_out = upper boundary,
     # q_costs = left boundary, q_costs_out = right boundary of the cell.
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+    P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
 
     # Will be reused for each border point (t) to find best starting point (s).
     p_cost_candidates = np.empty(len(p_pts), dtype=np.float_)
@@ -190,7 +218,7 @@ def _cell_owcs(
             q_end_idx = len(q_pts)
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            cost = _st_owc(P1, u, Q1, v, b, s, t)
+            _, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             q_cost_candidates[j] = q_costs[j] + cost
 
         s[1] = 0
@@ -201,7 +229,7 @@ def _cell_owcs(
         p_cost_candidates[0] = q_cost_candidates[0]  # cost from [0, 0] already known.
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            cost = _st_owc(P1, u, Q1, v, b, s, t)
+            _, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             p_cost_candidates[i_] = p_costs[i_] + cost
 
         p_costs_out[i] = min(
@@ -225,7 +253,7 @@ def _cell_owcs(
             p_end_idx = len(p_pts)
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            cost = _st_owc(P1, u, Q1, v, b, s, t)
+            _, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             p_cost_candidates[i] = p_costs[i] + cost
 
         s[0] = 0
@@ -236,7 +264,7 @@ def _cell_owcs(
         q_cost_candidates[0] = p_cost_candidates[0]  # cost from [0, 0] already known.
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            cost = _st_owc(P1, u, Q1, v, b, s, t)
+            _, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             q_cost_candidates[j_] = q_costs[j_] + cost
 
         q_costs_out[j] = min(
@@ -246,56 +274,6 @@ def _cell_owcs(
 
     # Lower-right corner and upper-left corner of cells.
     return q_costs_out[:1], p_costs_out[:1]
-
-
-@njit(cache=True)
-def _st_owc(P1, u, Q1, v, b, s, t):
-    """Optimal warping cost from s to t in a cell (without its path)."""
-    # Find steiner points in curve space
-    P_s = P1 + u * s[0]
-    P_t = P1 + u * t[0]
-    Q_s = Q1 + v * s[1]
-    Q_t = Q1 + v * t[1]
-
-    if s[1] > s[0] + b:
-        cs = np.array([s[1] - b, s[1]])
-    else:
-        cs = np.array([s[0], s[0] + b])
-    if t[1] < t[0] + b:
-        ct = np.array([t[1] - b, t[1]])
-    else:
-        ct = np.array([t[0], t[0] + b])
-
-    if cs[0] < ct[0]:  # pass through lm
-        P_cs = P1 + u * cs[0]
-        P_ct = P1 + u * ct[0]
-        Q_cs = Q1 + v * cs[1]
-        Q_ct = Q1 + v * ct[1]
-
-        if s[1] > s[0] + b:  # right
-            s_to_cs = _line_point_integrate(P_s, P_cs, Q_s)
-        else:  # up
-            s_to_cs = _line_point_integrate(Q_s, Q_cs, P_s)
-
-        cs_to_ct = _line_line_integrate(P_cs, P_ct, Q_cs, Q_ct)
-
-        if t[1] > t[0] + b:  # up
-            ct_to_t = _line_point_integrate(Q_ct, Q_t, P_t)
-        else:  # right
-            ct_to_t = _line_point_integrate(P_ct, P_t, Q_t)
-
-        ret = s_to_cs + cs_to_ct + ct_to_t
-
-    else:  # pass c'
-        if s[1] > s[0] + b:  # right -> up
-            ret = _line_point_integrate(P_s, P_t, Q_s) + _line_point_integrate(
-                Q_s, Q_t, P_t
-            )
-        else:  # up -> right
-            ret = _line_point_integrate(Q_s, Q_t, P_s) + _line_point_integrate(
-                P_s, P_t, Q_t
-            )
-    return ret
 
 
 def ifd_owp(P, Q, delta):
@@ -335,21 +313,42 @@ def ifd_owp(P, Q, delta):
         return np.nan, np.empty((0, 2), dtype=np.float_)
 
     if len(Q) == 2:
+        P_edge_len = np.linalg.norm(np.diff(P, axis=0), axis=-1)
         P_subedges_num = np.ones(len(P) - 1, dtype=np.int_)
         P_pts = P
     else:
-        P_subedges_num, P_pts = _sample_pts(P, delta)
+        P_edge_len, P_subedges_num, P_pts = _sample_pts(P, delta)
     if len(P) == 2:
+        Q_edge_len = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
         Q_subedges_num = np.ones(len(Q) - 1, dtype=np.int_)
         Q_pts = Q
     else:
-        Q_subedges_num, Q_pts = _sample_pts(Q, delta)
-    dist, owp = _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts)
+        Q_edge_len, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+        _, Q_subedges_num, Q_pts = _sample_pts(Q, delta)
+    dist, owp = _ifd_owp(
+        P_edge_len,
+        P_subedges_num,
+        P_pts,
+        Q_edge_len,
+        Q_subedges_num,
+        Q_pts,
+        _line_point_integrate,
+        _line_line_integrate,
+    )
     return dist, _refine_path(owp)
 
 
 @njit(cache=True)
-def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
+def _ifd_owp(
+    P_edge_len,
+    P_subedges_num,
+    P_pts,
+    Q_edge_len,
+    Q_subedges_num,
+    Q_pts,
+    line_point_cost,
+    line_line_cost,
+):
     # Same as _ifd(), but stores paths so needs more memory.
     NP = len(P_subedges_num) + 1
     P_vert_indices = np.empty(NP, dtype=np.int_)
@@ -417,11 +416,13 @@ def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
             )
 
             p1_cost, p1_path, q1_cost, q1_path = _cell_owps(
+                P_edge_len[i],
                 p_pts,
                 p_costs,
                 P_costs[P_vert_indices[i] : P_vert_indices[i + 1] + 1],
                 p_paths,
                 P_paths[P_vert_indices[i] : P_vert_indices[i + 1] + 1, : pc + 3],
+                Q_edge_len[j],
                 q_pts,
                 q_costs,
                 Q_costs[Q_vert_indices[j] : Q_vert_indices[j + 1] + 1],
@@ -431,6 +432,8 @@ def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
                 j == 0,
                 i == NP - 2,
                 j == NQ - 2,
+                line_point_cost,
+                line_line_cost,
             )
 
             if j == 0:
@@ -444,11 +447,13 @@ def _ifd_owp(P_subedges_num, P_pts, Q_subedges_num, Q_pts):
 
 @njit(cache=True)
 def _cell_owps(
+    L1,
     p_pts,
     p_costs,
     p_costs_out,
     p_paths,
     p_paths_out,
+    L2,
     q_pts,
     q_costs,
     q_costs_out,
@@ -458,9 +463,11 @@ def _cell_owps(
     q_is_initial,
     p_is_last,
     q_is_last,
+    line_point_cost,
+    line_line_cost,
 ):
-    """Apply _st_owp() to border points in a cell."""
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+    """Optimal warping paths and their costs for all points in an cell."""
+    P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
 
     p_cost_candidates = np.empty(len(p_pts), dtype=np.float_)
     q_cost_candidates = np.empty(len(q_pts), dtype=np.float_)
@@ -486,7 +493,7 @@ def _cell_owps(
             q_end_idx = len(q_pts)
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             q_cost_candidates[j] = q_costs[j] + cost
             q_path_candidates[j] = vert[1:] - vert[0]
 
@@ -499,7 +506,7 @@ def _cell_owps(
         p_path_candidates[0] = q_path_candidates[0]  # path from [0, 0] already known.
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             p_cost_candidates[i_] = p_costs[i_] + cost
             p_path_candidates[i_] = vert[1:] - vert[0]
 
@@ -536,7 +543,7 @@ def _cell_owps(
             p_end_idx = len(p_pts)
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             p_cost_candidates[i] = p_costs[i] + cost
             p_path_candidates[i] = vert[1:] - vert[0]
 
@@ -549,7 +556,7 @@ def _cell_owps(
         q_path_candidates[0] = p_path_candidates[0]  # path from [0, 0] already known.
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            vert, cost = _st_owp(P1, u, Q1, v, b, s, t)
+            vert, cost = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
             q_cost_candidates[j_] = q_costs[j_] + cost
             q_path_candidates[j_] = vert[1:] - vert[0]
 
@@ -576,7 +583,7 @@ def _cell_owps(
 
 
 @njit(cache=True)
-def _st_owp(P1, u, Q1, v, b, s, t):
+def _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost):
     """Optimal warping path between two points in a cell and its cost."""
     # Find steiner points in curve space
     P_s = P1 + u * s[0]
@@ -600,30 +607,26 @@ def _st_owp(P1, u, Q1, v, b, s, t):
         Q_ct = Q1 + v * ct[1]
 
         if s[1] > s[0] + b:  # right
-            s_to_cs = _line_point_integrate(P_s, P_cs, Q_s)
+            s_to_cs = line_point_cost(P_s, P_cs, Q_s)
         else:  # up
-            s_to_cs = _line_point_integrate(Q_s, Q_cs, P_s)
+            s_to_cs = line_point_cost(Q_s, Q_cs, P_s)
 
-        cs_to_ct = _line_line_integrate(P_cs, P_ct, Q_cs, Q_ct)
+        cs_to_ct = line_line_cost(P_cs, P_ct, Q_cs, Q_ct)
 
         if t[1] > t[0] + b:  # up
-            ct_to_t = _line_point_integrate(Q_ct, Q_t, P_t)
+            ct_to_t = line_point_cost(Q_ct, Q_t, P_t)
         else:  # right
-            ct_to_t = _line_point_integrate(P_ct, P_t, Q_t)
+            ct_to_t = line_point_cost(P_ct, P_t, Q_t)
 
         cost = s_to_cs + cs_to_ct + ct_to_t
         verts = np.stack((s, cs, ct, t))
 
     else:  # pass c'
         if s[1] > s[0] + b:  # right -> up
-            cost = _line_point_integrate(P_s, P_t, Q_s) + _line_point_integrate(
-                Q_s, Q_t, P_t
-            )
+            cost = line_point_cost(P_s, P_t, Q_s) + line_point_cost(Q_s, Q_t, P_t)
             c_prime = np.array((t[0], s[1]))
         else:  # up -> right
-            cost = _line_point_integrate(Q_s, Q_t, P_s) + _line_point_integrate(
-                P_s, P_t, Q_t
-            )
+            cost = line_point_cost(Q_s, Q_t, P_s) + line_point_cost(P_s, P_t, Q_t)
             c_prime = np.array((s[0], t[1]))
         # Force len=4 because homogeneous output type is easier to handle
         verts = np.stack((s, c_prime, c_prime, t))
@@ -649,22 +652,7 @@ def _sample_pts(vert, delta):
             pts[count + i] = P0 + (i / n) * v
         count += n
     pts[count] = vert[N - 1]
-    return subedges_num, pts
-
-
-@njit(cache=True)
-def _edge_costs(pts, subedges_num, p):
-    pts_costs = np.empty(len(pts), dtype=np.float_)
-    count = 0
-    pts_costs[0] = 0
-    for n in subedges_num:
-        a = pts[count]
-        for i in range(n):
-            b = pts[count + i + 1]
-            integ = _line_point_integrate(a, b, p)
-            pts_costs[count + i + 1] = pts_costs[count] + integ
-        count += n
-    return pts_costs
+    return edge_lens, subedges_num, pts
 
 
 @njit(cache=True)
@@ -684,11 +672,11 @@ def _line_point_integrate(a, b, p):
     if A < EPSILON:
         # Degenerate: ab does not form line segement.
         return 0
-    ap = p - a
-    if np.abs(cross2d(ab, ap)) < EPSILON:
+    pa = a - p
+    if np.abs(cross2d(ab, pa)) < EPSILON:
         # Degenerate: a, b, p all on a same line.
-        t = np.dot(ab, ap) / A
-        L1 = np.dot(ap, ap)
+        t = np.dot(ab, pa) / A
+        L1 = np.dot(pa, pa)
         bp = p - b
         L2 = np.dot(bp, bp)
         if t < 0:
@@ -697,7 +685,6 @@ def _line_point_integrate(a, b, p):
             return (L1 - L2) / 2
         else:
             return (L1 + L2) / 2
-    pa = -ap
     B = 2 * np.dot(ab, pa) / A
     C = np.dot(pa, pa) / A
     integ = (
@@ -750,7 +737,7 @@ def _line_line_integrate(a, b, c, d):
 
 
 @njit(cache=True)
-def _cell_info(P_pts, Q_pts):
+def _cell_info(P_pts, L1, Q_pts, L2):
     P1 = P_pts[0]
     P2 = P_pts[-1]
     Q1 = Q_pts[0]
@@ -758,8 +745,6 @@ def _cell_info(P_pts, Q_pts):
 
     P1P2 = P2 - P1
     Q1Q2 = Q2 - Q1
-    L1 = np.linalg.norm(P1P2)
-    L2 = np.linalg.norm(Q1Q2)
 
     if L1 < EPSILON:
         u = np.array([0, 0], np.float_)
@@ -788,7 +773,7 @@ def _cell_info(P_pts, Q_pts):
     delta_P = L1 / (len(P_pts) - 1)
     delta_Q = L2 / (len(Q_pts) - 1)
 
-    return P1, Q1, L1, L2, u, v, b, delta_P, delta_Q
+    return P1, Q1, u, v, b, delta_P, delta_Q
 
 
 @njit(cache=True)

@@ -23,8 +23,10 @@ def test_integration_degenerates():
 
 def test_lm():
     P = np.array([[0.5, 0], [1, 0]], dtype=np.float_)
+    L1 = np.linalg.norm(np.diff(P, axis=0), axis=-1)
     Q = np.array([[0, 1], [1, 1]], dtype=np.float_)
-    assert _cell_info(P, Q)[6] == 0.5
+    L2 = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
+    assert _cell_info(P, L1, Q, L2)[4] == 0.5
 
 
 def test_ifd():
@@ -35,9 +37,11 @@ def test_ifd():
 
 
 def test_ifd_owp():
-    assert ifd_owp([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)[0] == 2.0
-    assert ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)[0] == 2.0
-    assert ifd_owp([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)[0] == 2.0
-    assert (
-        ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)[0] == 2.0
-    )
+
+    def check_value(P, Q, delta):
+        assert ifd_owp(P, Q, delta)[0] == ifd(P, Q, delta)
+
+    check_value([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    check_value([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
+    check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
