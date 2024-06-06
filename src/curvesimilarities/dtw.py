@@ -9,6 +9,8 @@ import numpy as np
 from numba import njit
 from scipy.spatial.distance import cdist
 
+from .util import sanitize_vertices
+
 __all__ = [
     "dtw",
     "dtw_owp",
@@ -17,6 +19,7 @@ __all__ = [
 ]
 
 
+@sanitize_vertices(owp=False)
 def dtw(P, Q):
     r"""Dynamic time warping distance.
 
@@ -45,7 +48,13 @@ def dtw(P, Q):
     Returns
     -------
     dist : double
-        The dynamic time warping distance between P and Q.
+        The dynamic time warping distance between *P* and *Q*, NaN if any vertice
+        is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     See Also
     --------
@@ -68,12 +77,11 @@ def dtw(P, Q):
     >>> dtw(P, Q)
     20.0...
     """
-    if len(P) == 0 or len(Q) == 0:
-        return np.nan
     dist = cdist(P, Q)
     return _dtw_acm(dist)[-1, -1]
 
 
+@sanitize_vertices(owp=True)
 def dtw_owp(P, Q):
     """Dynamic time warping distance and its optimal warping path.
 
@@ -89,9 +97,16 @@ def dtw_owp(P, Q):
     Returns
     -------
     dist : double
-        The dynamic time warping distance between P and Q.
+        The dynamic time warping distance between *P* and *Q*, NaN if any vertice
+        is empty.
     owp : ndarray
-        Indices of P and Q for optimal warping path.
+        Indices of *P* and *Q* for optimal warping path, empty if any vertice is
+        empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     Examples
     --------
@@ -106,13 +121,12 @@ def dtw_owp(P, Q):
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
-    if len(P) == 0 or len(Q) == 0:
-        return np.nan, np.empty((0, 2), dtype=np.int_)
     dist = cdist(P, Q)
     acm = _dtw_acm(dist)
     return acm[-1, -1], _dtw_owp(acm)
 
 
+@sanitize_vertices(owp=False)
 def sdtw(P, Q):
     r"""Squared dynamic time warping distance.
 
@@ -136,7 +150,13 @@ def sdtw(P, Q):
     Returns
     -------
     dist : double
-        The squared dynamic time warping distance between P and Q.
+        The squared dynamic time warping distance between *P* and *Q*, NaN if any
+        vertice is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     See Also
     --------
@@ -150,12 +170,11 @@ def sdtw(P, Q):
     >>> sdtw(P, Q)
     20.0...
     """
-    if len(P) == 0 or len(Q) == 0:
-        return np.nan
     dist = cdist(P, Q)
     return _dtw_acm(dist**2)[-1, -1]
 
 
+@sanitize_vertices(owp=True)
 def sdtw_owp(P, Q):
     """Squared dynamic time warping distance and its optimal warping path.
 
@@ -171,9 +190,16 @@ def sdtw_owp(P, Q):
     Returns
     -------
     dist : double
-        The squared dynamic time warping distance between P and Q.
+        The squared dynamic time warping distance between *P* and *Q*, NaN if any
+        vertice is empty.
     owp : ndarray
-        Indices of P and Q for optimal warping path.
+        Indices of *P* and *Q* for optimal warping path, empty if any vertice is
+        empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     Examples
     --------
@@ -188,8 +214,6 @@ def sdtw_owp(P, Q):
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
-    if len(P) == 0 or len(Q) == 0:
-        return np.nan, np.empty((0, 2), dtype=np.int_)
     dist = cdist(P, Q)
     acm = _dtw_acm(dist**2)
     return acm[-1, -1], _dtw_owp(acm)

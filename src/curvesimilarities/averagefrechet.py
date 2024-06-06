@@ -12,6 +12,7 @@ from .integfrechet import (
     _sample_pts,
     ifd_owp,
 )
+from .util import sanitize_vertices
 
 __all__ = [
     "afd",
@@ -24,6 +25,7 @@ __all__ = [
 EPSILON = np.finfo(np.float_).eps
 
 
+@sanitize_vertices(owp=False)
 def afd(P, Q, delta):
     r"""Average Fréchet distance between two open polygonal curves.
 
@@ -69,7 +71,13 @@ def afd(P, Q, delta):
     Returns
     -------
     dist : double
-        The average Fréchet distance between P and Q.
+        The average Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     See Also
     --------
@@ -91,9 +99,6 @@ def afd(P, Q, delta):
     >>> afd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     1.0
     """
-    P = np.asarray(P, dtype=np.float_)
-    Q = np.asarray(Q, dtype=np.float_)
-
     if len(P) < 2 or len(Q) < 2:
         return np.nan
 
@@ -123,6 +128,7 @@ def afd(P, Q, delta):
     return ifd / (np.sum(P_edge_len) + np.sum(Q_edge_len))
 
 
+@sanitize_vertices(owp=True)
 def afd_owp(P, Q, delta):
     """Average Fréchet distance and its optimal warping path.
 
@@ -140,9 +146,15 @@ def afd_owp(P, Q, delta):
     Returns
     -------
     dist : double
-        The average Fréchet distance between P and Q.
+        The average Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
     owp : ndarray
-        Optimal warping path.
+        Optimal warping path, empty if any vertice is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     Examples
     --------
@@ -157,6 +169,7 @@ def afd_owp(P, Q, delta):
     return dist / np.sum(path[-1]), path
 
 
+@sanitize_vertices(owp=False)
 def qafd(P, Q, delta):
     r"""Quadratic average Fréchet distance between two open polygonal curves.
 
@@ -208,7 +221,13 @@ def qafd(P, Q, delta):
     Returns
     -------
     dist : double
-        The quadratic average Fréchet distance between P and Q.
+        The quadratic average Fréchet distance between *P* and *Q*, NaN if any
+        vertice is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     See Also
     --------
@@ -220,9 +239,6 @@ def qafd(P, Q, delta):
     >>> qafd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     1.0
     """
-    P = np.asarray(P, dtype=np.float_)
-    Q = np.asarray(Q, dtype=np.float_)
-
     if len(P) < 2 or len(Q) < 2:
         return np.nan
 
@@ -252,6 +268,7 @@ def qafd(P, Q, delta):
     return np.sqrt(square_ifd / (np.sum(P_edge_len) + np.sum(Q_edge_len)))
 
 
+@sanitize_vertices(owp=True)
 def qafd_owp(P, Q, delta):
     """Quadratic average Fréchet distance and its optimal warping path.
 
@@ -269,9 +286,15 @@ def qafd_owp(P, Q, delta):
     Returns
     -------
     dist : double
-        The quadratic average Fréchet distance between P and Q.
+        The quadratic average Fréchet distance between *P* and *Q*, NaN if any
+        vertice is empty.
     owp : ndarray
-        Optimal warping path.
+        Optimal warping path, empty if any vertice is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     Examples
     --------
@@ -282,9 +305,6 @@ def qafd_owp(P, Q, delta):
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T)  #doctest: +SKIP
     """
-    P = np.asarray(P, dtype=np.float_)
-    Q = np.asarray(Q, dtype=np.float_)
-
     if len(P) < 2 or len(Q) < 2:
         return np.nan, np.empty((0, 2), dtype=np.float_)
 

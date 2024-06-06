@@ -4,6 +4,8 @@ import numpy as np
 from numba import njit
 from scipy.spatial.distance import cdist
 
+from .util import sanitize_vertices
+
 __all__ = [
     "fd",
     "dfd",
@@ -14,6 +16,7 @@ EPSILON = np.finfo(np.float_).eps
 NAN = np.float_(np.nan)
 
 
+@sanitize_vertices(owp=False)
 def fd(P, Q):
     r"""(Continuous) Fréchet distance between two open polygonal curves.
 
@@ -42,12 +45,13 @@ def fd(P, Q):
     Returns
     -------
     dist : double
-        The (continuous) Fréchet distance between P and Q.
+        The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
 
     Raises
     ------
     ValueError
-        An exception is thrown if empty array is passed.
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     Notes
     -----
@@ -64,10 +68,6 @@ def fd(P, Q):
     >>> fd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]])
     1.0...
     """
-    if len(P) == 0 or len(Q) == 0:
-        raise ValueError("Vertices must not be empty.")
-    P = np.asarray(P, dtype=np.float_)
-    Q = np.asarray(Q, dtype=np.float_)
     return np.float_(_fd(P, Q))
 
 
@@ -218,6 +218,7 @@ def _fd(P, Q):
     return e2
 
 
+@sanitize_vertices(owp=False)
 def dfd(P, Q):
     r"""Discrete Fréchet distance between two open polygonal curves.
 
@@ -246,12 +247,13 @@ def dfd(P, Q):
     Returns
     -------
     dist : double
-        The discrete Fréchet distance between P and Q.
+        The discrete Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
 
     Raises
     ------
     ValueError
-        An exception is thrown if empty array is passed.
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     Notes
     -----
@@ -266,8 +268,6 @@ def dfd(P, Q):
     >>> dfd([[0, 0], [1, 1], [2, 0]], [[0, 1], [2, -4]])
     4.0
     """
-    if len(P) == 0 or len(Q) == 0:
-        raise ValueError("Vertices must not be empty.")
     dist = cdist(P, Q)
     return _dfd(dist)[-1, -1]
 

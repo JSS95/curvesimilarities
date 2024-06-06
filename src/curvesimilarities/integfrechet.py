@@ -4,6 +4,8 @@ import numpy as np
 from numba import njit
 from numba.np.extensions import cross2d
 
+from .util import sanitize_vertices
+
 __all__ = [
     "ifd",
     "ifd_owp",
@@ -13,6 +15,7 @@ __all__ = [
 EPSILON = np.finfo(np.float_).eps
 
 
+@sanitize_vertices(owp=False)
 def ifd(P, Q, delta):
     r"""Integral Fréchet distance between two open polygonal curves.
 
@@ -49,7 +52,13 @@ def ifd(P, Q, delta):
     Returns
     -------
     dist : double
-        The integral Fréchet distance between P and Q.
+        The integral Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     See Also
     --------
@@ -70,9 +79,6 @@ def ifd(P, Q, delta):
     >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     2.0
     """
-    P = np.asarray(P, dtype=np.float_)
-    Q = np.asarray(Q, dtype=np.float_)
-
     if len(P) < 2 or len(Q) < 2:
         return np.nan
 
@@ -276,6 +282,7 @@ def _cell_owcs(
     return q_costs_out[:1], p_costs_out[:1]
 
 
+@sanitize_vertices(owp=True)
 def ifd_owp(P, Q, delta):
     """Integral Fréchet distance and its optimal warping path.
 
@@ -293,9 +300,15 @@ def ifd_owp(P, Q, delta):
     Returns
     -------
     dist : double
-        The integral Fréchet distance between P and Q.
+        The integral Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
     owp : ndarray
-        Optimal warping path.
+        Optimal warping path, empty if any vertice is empty.
+
+    Raises
+    ------
+    ValueError
+        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
 
     Examples
     --------
@@ -306,9 +319,6 @@ def ifd_owp(P, Q, delta):
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T)  #doctest: +SKIP
     """
-    P = np.asarray(P, dtype=np.float_)
-    Q = np.asarray(Q, dtype=np.float_)
-
     if len(P) < 2 or len(Q) < 2:
         return np.nan, np.empty((0, 2), dtype=np.float_)
 
