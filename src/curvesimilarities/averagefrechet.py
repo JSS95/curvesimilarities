@@ -26,8 +26,19 @@ __all__ = [
 EPSILON = np.finfo(np.float_).eps
 
 
+@njit(cache=True)
+def afd_degenerate(curve, point):
+    ret = 0
+    length = 0
+    for i in range(len(curve) - 1):
+        a, b = curve[i], curve[i + 1]
+        ret += _line_point_integrate(a, b, point)
+        length += np.linalg.norm(b - a)
+    return ret / length
+
+
 @sanitize_vertices(owp=False)
-@sanitize_vertices_ifd(owp=False)
+@sanitize_vertices_ifd(afd_degenerate, owp=False)
 def afd(P, Q, delta):
     r"""Average Fréchet distance between two open polygonal curves.
 
@@ -123,7 +134,7 @@ def afd(P, Q, delta):
 
 
 @sanitize_vertices(owp=True)
-@sanitize_vertices_ifd(owp=True)
+@sanitize_vertices_ifd(afd_degenerate, owp=True)
 def afd_owp(P, Q, delta):
     """Average Fréchet distance and its optimal warping path.
 
@@ -165,8 +176,19 @@ def afd_owp(P, Q, delta):
     return dist / np.sum(path[-1]), path
 
 
+@njit(cache=True)
+def qafd_degenerate(curve, point):
+    ret = 0
+    length = 0
+    for i in range(len(curve) - 1):
+        a, b = curve[i], curve[i + 1]
+        ret += _line_point_square_integrate(a, b, point)
+        length += np.linalg.norm(b - a)
+    return np.sqrt(ret / length)
+
+
 @sanitize_vertices(owp=False)
-@sanitize_vertices_ifd(owp=False)
+@sanitize_vertices_ifd(qafd_degenerate, owp=False)
 def qafd(P, Q, delta):
     r"""Quadratic average Fréchet distance between two open polygonal curves.
 
@@ -258,7 +280,7 @@ def qafd(P, Q, delta):
 
 
 @sanitize_vertices(owp=True)
-@sanitize_vertices_ifd(owp=True)
+@sanitize_vertices_ifd(qafd_degenerate, owp=True)
 def qafd_owp(P, Q, delta):
     """Quadratic average Fréchet distance and its optimal warping path.
 

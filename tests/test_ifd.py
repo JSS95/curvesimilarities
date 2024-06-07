@@ -8,6 +8,17 @@ from curvesimilarities.integfrechet import (
 )
 
 
+def test_ifd_degenerate():
+
+    P = np.asarray([[0, 0]], dtype=np.float_)
+    Q = np.asarray([[0, 1], [1, 1]], dtype=np.float_)
+    assert ifd(P, Q, 0.1) == _line_point_integrate(Q[0], Q[1], P[0])
+
+    P = np.asarray([[0, 1], [1, 1]], dtype=np.float_)
+    Q = np.asarray([[0, 0]], dtype=np.float_)
+    assert ifd(P, Q, 0.1) == _line_point_integrate(P[0], P[1], Q[0])
+
+
 def test_integration_degenerates():
     # test if integration can handle degenerate cases without error.
     A = np.array([1, 0], dtype=np.float_)

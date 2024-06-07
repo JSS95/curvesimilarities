@@ -17,7 +17,7 @@ __all__ = [
 EPSILON = np.finfo(np.float_).eps
 
 
-def sanitize_vertices_ifd(owp):
+def sanitize_vertices_ifd(degenerate_fallback, owp):
     """Decorator to sanitize the vertices for IFD and its variants.
 
     The integral-based Fréchet distance variants must return NaN for two
@@ -29,20 +29,45 @@ def sanitize_vertices_ifd(owp):
 
         @functools.wraps(func)
         def wrapper(P, Q, *args, **kwargs):
-            if len(P) == 1 and len(Q) == 1:
+            if len(P) != 1 and len(Q) != 1:
+                return func(P, Q, *args, **kwargs)
+            elif len(P) == 1 and len(Q) == 1:
                 if owp:
-                    return np.float_(np.nan), np.empty((0, 2), dtype=np.int_)
+                    return np.float_(np.nan), np.empty((0, 2), dtype=np.float_)
                 else:
                     return np.float_(np.nan)
-            return func(P, Q, *args, **kwargs)
+
+            # degenerate cases
+            if len(P) == 1:
+                curve, point, curve_idx = Q, P[0], 1
+            else:
+                curve, point, curve_idx = P, Q[0], 0
+
+            dist = degenerate_fallback(curve, point)
+            if owp:
+                path = np.zeros((2, 2), dtype=np.float_)
+                curve_len = np.sum(np.linalg.norm(np.diff(curve, axis=0), axis=-1))
+                path[1, curve_idx] = curve_len
+                return dist, path
+            else:
+                return dist
 
         return wrapper
 
     return decorator
 
 
+@njit(cache=True)
+def ifd_degenerate(curve, point):
+    ret = 0
+    for i in range(len(curve) - 1):
+        a, b = curve[i], curve[i + 1]
+        ret += _line_point_integrate(a, b, point)
+    return ret
+
+
 @sanitize_vertices(owp=False)
-@sanitize_vertices_ifd(owp=False)
+@sanitize_vertices_ifd(ifd_degenerate, owp=False)
 def ifd(P, Q, delta):
     r"""Integral Fréchet distance between two open polygonal curves.
 
@@ -287,7 +312,7 @@ def _cell_owcs(
 
 
 @sanitize_vertices(owp=True)
-@sanitize_vertices_ifd(owp=True)
+@sanitize_vertices_ifd(ifd_degenerate, owp=True)
 def ifd_owp(P, Q, delta):
     """Integral Fréchet distance and its optimal warping path.
 
@@ -673,6 +698,61 @@ def _sample_pts(vert, delta):
 
 
 @njit(cache=True)
+def _cell_info(P_pts, L1, Q_pts, L2):
+    P1 = P_pts[0]
+    P2 = P_pts[-1]
+    Q1 = Q_pts[0]
+    Q2 = Q_pts[-1]
+
+    P1P2 = P2 - P1
+    Q1Q2 = Q2 - Q1
+
+    if L1 < EPSILON:
+        u = np.array([0, 0], np.float_)
+    else:
+        u = (P1P2) / L1
+    if L2 < EPSILON:
+        v = np.array([0, 0], np.float_)
+    else:
+        v = (Q1Q2) / L2
+
+    # Find lm: y = x + b.
+    # Can be acquired by finding points where distance is minimum.
+    w = P1 - Q1
+    u_dot_v = np.dot(u, v)
+    if np.abs(cross2d(u, v)) > EPSILON:
+        # Find points P(s) and Q(t) where P and Q intersects.
+        # (s, t) is on y = x + b
+        A = np.array([[1, -u_dot_v], [-u_dot_v, 1]], dtype=np.float_)
+        B = np.array([-np.dot(u, w), np.dot(v, w)], dtype=np.float_)
+        s, t = np.linalg.solve(A, B)
+        b = t - s
+    else:
+        # P and Q are parallel; equations degenerate into s - (u.v)t = -u.w
+        b = np.dot(u, w) / u_dot_v
+
+    delta_P = L1 / (len(P_pts) - 1)
+    delta_Q = L2 / (len(Q_pts) - 1)
+
+    return P1, Q1, u, v, b, delta_P, delta_Q
+
+
+@njit(cache=True)
+def _refine_path(path):
+    prev = path[0]
+    count = 1
+    for i in range(1, len(path)):
+        current = path[i]
+        if np.all(prev == current):
+            continue
+        else:
+            path[count] = current
+            prev = current
+            count += 1
+    return path[:count]
+
+
+@njit(cache=True)
 def _line_point_integrate(a, b, p):
     r"""Analytic integration from AP to BP.
 
@@ -751,58 +831,3 @@ def _line_line_integrate(a, b, c, d):
             - (B**2 - 4 * C) * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / denom)
         ) / 8
     return (np.sqrt(A * D) + np.sqrt(A * E)) * integ
-
-
-@njit(cache=True)
-def _cell_info(P_pts, L1, Q_pts, L2):
-    P1 = P_pts[0]
-    P2 = P_pts[-1]
-    Q1 = Q_pts[0]
-    Q2 = Q_pts[-1]
-
-    P1P2 = P2 - P1
-    Q1Q2 = Q2 - Q1
-
-    if L1 < EPSILON:
-        u = np.array([0, 0], np.float_)
-    else:
-        u = (P1P2) / L1
-    if L2 < EPSILON:
-        v = np.array([0, 0], np.float_)
-    else:
-        v = (Q1Q2) / L2
-
-    # Find lm: y = x + b.
-    # Can be acquired by finding points where distance is minimum.
-    w = P1 - Q1
-    u_dot_v = np.dot(u, v)
-    if np.abs(cross2d(u, v)) > EPSILON:
-        # Find points P(s) and Q(t) where P and Q intersects.
-        # (s, t) is on y = x + b
-        A = np.array([[1, -u_dot_v], [-u_dot_v, 1]], dtype=np.float_)
-        B = np.array([-np.dot(u, w), np.dot(v, w)], dtype=np.float_)
-        s, t = np.linalg.solve(A, B)
-        b = t - s
-    else:
-        # P and Q are parallel; equations degenerate into s - (u.v)t = -u.w
-        b = np.dot(u, w) / u_dot_v
-
-    delta_P = L1 / (len(P_pts) - 1)
-    delta_Q = L2 / (len(Q_pts) - 1)
-
-    return P1, Q1, u, v, b, delta_P, delta_Q
-
-
-@njit(cache=True)
-def _refine_path(path):
-    prev = path[0]
-    count = 1
-    for i in range(1, len(path)):
-        current = path[i]
-        if np.all(prev == current):
-            continue
-        else:
-            path[count] = current
-            prev = current
-            count += 1
-    return path[:count]
