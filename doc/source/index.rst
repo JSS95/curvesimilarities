@@ -19,26 +19,30 @@ To reproduce the examples, run the following code first:
 .. literalinclude:: plot_pre_code
     :language: python
 
-curvesimilarities.frechet
--------------------------
+.. warning::
+    The similarity functions do not sanitize the vertices of input polygonal curves.
+    Make sure your curves do not have consecutive duplicate vertices.
+
+Fréchet distance
+----------------
 
 .. automodule:: curvesimilarities.frechet
     :members:
 
-curvesimilarities.dtw
----------------------
+Dynamic time warping distance
+-----------------------------
 
 .. automodule:: curvesimilarities.dtw
     :members:
 
-curvesimilarities.integfrechet
-------------------------------
+Integral Fréchet distance
+-------------------------
 
 .. automodule:: curvesimilarities.integfrechet
     :members:
 
-curvesimilarities.averagefrechet
---------------------------------
+Average Fréchet distance
+------------------------
 
 .. automodule:: curvesimilarities.averagefrechet
     :members:

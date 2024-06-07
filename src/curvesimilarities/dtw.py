@@ -1,4 +1,4 @@
-"""Dynamic time warping.
+"""Dynamic time warping distance.
 
 This module implements only the basic algorithm. If you need advanced features, use
 dedicated packages such as `dtw-python
