@@ -1,4 +1,4 @@
-"""Fréchet distance and its variants."""
+"""Continuous and discrete Fréchet distances."""
 
 import numpy as np
 from numba import njit
