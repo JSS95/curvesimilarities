@@ -814,20 +814,22 @@ def _line_line_integrate(a, b, c, d):
         # Degenerate: ab and cd has same direction and magnitude
         return np.sqrt(C * D) + np.sqrt(C * E)
     B, C = 2 * np.dot(vu, w) / A, C / A
-    if B < EPSILON and C < EPSILON:
+    if np.abs(B) < EPSILON and C < EPSILON:
         # Degenerate: B and C are 0 (either w = 0 or A is too large)
         return (np.sqrt(A * D) + np.sqrt(A * E)) / 2
+    numer = 2 + B + 2 * np.sqrt(1 + B + C)
     denom = B + 2 * np.sqrt(C)
-    if denom < EPSILON:
+    if np.abs(numer) < EPSILON or np.abs(denom) < EPSILON:
         # Degenerate: u-v and w are on the opposite direction
+        # B**2 = 4*C, therefore integral sqrt((t + B/2)**2) dt over t [0, 1]
         if B > 0 or B < -2:
-            integ = (-1 - B) / 2
+            integ = (np.abs(B / 2) + np.abs(1 + B / 2)) / 2
         else:
-            integ = (2 + 2 * B + B**2) / 4
+            integ = (np.abs(B / 2) ** 2) / 2 + (np.abs(1 + B / 2) ** 2) / 2
     else:
         integ = (
             4 * np.sqrt(1 + B + C)
             + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
-            - (B**2 - 4 * C) * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / denom)
+            - (B**2 - 4 * C) * np.log(numer / denom)
         ) / 8
     return (np.sqrt(A * D) + np.sqrt(A * E)) * integ
