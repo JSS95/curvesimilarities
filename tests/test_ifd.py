@@ -56,3 +56,19 @@ def test_ifd_owp():
     check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     check_value([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
     check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
+
+
+def test_ifd_owp_failedcases():
+    P = [
+        [403, 250],
+        [403, 253],
+        [402, 254],
+    ]
+    Q = [
+        [355.75, 243.0],
+        [355.89, 244.5],
+        [355.75, 246.0],
+    ]
+    _, owp = ifd_owp(P, Q, 5.0)
+    assert owp[-1, 0] == np.sum(np.linalg.norm(np.diff(P, axis=0), axis=-1))
+    assert owp[-1, 1] == np.sum(np.linalg.norm(np.diff(Q, axis=0), axis=-1))

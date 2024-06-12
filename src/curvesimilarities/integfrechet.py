@@ -239,7 +239,7 @@ def _cell_owcs(
 
     # compute upper boundary
     t[1] = L2
-    if q_is_last:  # No steiner points on upper boundary. Just check corner point.
+    if q_is_last:  # No need steiner points on upper boundary. Just check corner point.
         start_idx = len(p_pts) - 1
     else:
         start_idx = 0
@@ -273,10 +273,12 @@ def _cell_owcs(
 
     # compute right boundary
     t[0] = L1
-    if p_is_last:  # No steiner points on right boundary. Just check corner point.
+    if p_is_last:  # No need steiner points on right boundary. Just check corner point.
         start_idx = len(q_pts) - 1
-    else:
+    elif q_is_initial:
         start_idx = 0
+    else:  # LR corner already computed by the lower cell
+        start_idx = 1
     # Don't need to compute the last j (already done by P loop just above)
     for j in range(start_idx, len(q_pts) - 1):
         t[1] = delta_Q * j
@@ -497,7 +499,7 @@ def _cell_owps(
 
     # compute upper boundary
     t[1] = L2
-    if q_is_last:  # No steiner points on upper boundary. Just check corner point.
+    if q_is_last:  # No need steiner points on upper boundary. Just check corner point.
         start_idx = len(p_pts) - 1
     else:
         start_idx = 0
@@ -546,10 +548,12 @@ def _cell_owps(
 
     # compute right boundary
     t[0] = L1
-    if p_is_last:  # No steiner points on right boundary. Just check corner point.
+    if p_is_last:  # No need steiner points on right boundary. Just check corner point.
         start_idx = len(q_pts) - 1
-    else:
+    elif q_is_initial:
         start_idx = 0
+    else:  # LR corner already computed by the lower cell (MUST exclude for path track)
+        start_idx = 1
     # Don't need to compute the last j (already done by P loop just above)
     for j in range(start_idx, len(q_pts) - 1):
         t[1] = delta_Q * j
