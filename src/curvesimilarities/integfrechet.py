@@ -724,7 +724,7 @@ def _cell_info(P_pts, L1, Q_pts, L2):
     # Can be acquired by finding points where distance is minimum.
     w = P1 - Q1
     u_dot_v = np.dot(u, v)
-    if np.abs(cross2d(u, v)) > EPSILON:
+    if np.abs(1 - u_dot_v**2) > EPSILON:
         # Find points P(s) and Q(t) where P and Q intersects.
         # (s, t) is on y = x + b
         A = np.array([[1, -u_dot_v], [-u_dot_v, 1]], dtype=np.float_)
