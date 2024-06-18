@@ -10,32 +10,32 @@ from curvesimilarities.integfrechet import (
 
 def test_ifd_degenerate():
 
-    P = np.asarray([[0, 0]], dtype=np.float_)
-    Q = np.asarray([[0, 1], [1, 1]], dtype=np.float_)
+    P = np.asarray([[0, 0]], dtype=np.float64)
+    Q = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
     assert ifd(P, Q, 0.1) == _line_point_integrate(Q[0], Q[1], P[0])
 
-    P = np.asarray([[0, 1], [1, 1]], dtype=np.float_)
-    Q = np.asarray([[0, 0]], dtype=np.float_)
+    P = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
+    Q = np.asarray([[0, 0]], dtype=np.float64)
     assert ifd(P, Q, 0.1) == _line_point_integrate(P[0], P[1], Q[0])
 
 
 def test_integration_degenerates():
     # test if integration can handle degenerate cases without error.
-    A = np.array([1, 0], dtype=np.float_)
-    B = np.array([2, 0], dtype=np.float_)
+    A = np.array([1, 0], dtype=np.float64)
+    B = np.array([2, 0], dtype=np.float64)
 
-    _line_point_integrate(A, A, np.array([3, 3], dtype=np.float_))
+    _line_point_integrate(A, A, np.array([3, 3], dtype=np.float64))
     _line_point_integrate(A, B, (A + B) / 2)
 
     _line_line_integrate(A, B, A + 1, B + 1)
-    _line_line_integrate(A, B, A, np.array([3, 3], dtype=np.float_))
+    _line_line_integrate(A, B, A, np.array([3, 3], dtype=np.float64))
     _line_line_integrate(A, B, B, A)
 
 
 def test_lm():
-    P = np.array([[0.5, 0], [1, 0]], dtype=np.float_)
+    P = np.array([[0.5, 0], [1, 0]], dtype=np.float64)
     L1 = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-    Q = np.array([[0, 1], [1, 1]], dtype=np.float_)
+    Q = np.array([[0, 1], [1, 1]], dtype=np.float64)
     L2 = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
     assert _cell_info(P, L1, Q, L2)[4] == 0.5
 
@@ -47,6 +47,13 @@ def test_ifd():
     assert ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1) == 2.0
 
 
+def test_ifd_dtype():
+    assert (
+        ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1).dtype
+        == np.float64
+    )
+
+
 def test_ifd_owp():
 
     def check_value(P, Q, delta):
@@ -56,6 +63,12 @@ def test_ifd_owp():
     check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     check_value([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
     check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
+
+
+def test_ifd_owp_dtype():
+    dist, path = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
+    assert dist.dtype == np.float64
+    assert path.dtype == np.float64
 
 
 def test_ifd_owp_failedcases():

@@ -12,8 +12,8 @@ __all__ = [
 ]
 
 
-EPSILON = np.finfo(np.float_).eps
-NAN = np.float_(np.nan)
+EPSILON = np.finfo(np.float64).eps
+NAN = np.float64(np.nan)
 
 
 @sanitize_vertices(owp=False)
@@ -65,10 +65,10 @@ def fd(P, Q):
 
     Examples
     --------
-    >>> fd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]])
+    >>> float(fd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]))
     1.0...
     """
-    return np.float_(_fd(P, Q))
+    return np.float64(_fd(P, Q))
 
 
 @njit(cache=True)
@@ -82,15 +82,15 @@ def _free_interval(A, B, C, eps):
         if c > 0:
             interval = [NAN, NAN]
         else:
-            interval = [np.float_(0), np.float_(1)]
+            interval = [np.float64(0), np.float64(1)]
         return interval
     b = 2 * np.dot(coeff1, coeff2)
     Det = b**2 - 4 * a * c
     if Det < 0:
         interval = [NAN, NAN]
     else:
-        start = max((-b - Det**0.5) / 2 / a, np.float_(0))
-        end = min((-b + Det**0.5) / 2 / a, np.float_(1))
+        start = max((-b - Det**0.5) / 2 / a, np.float64(0))
+        end = min((-b + Det**0.5) / 2 / a, np.float64(1))
         if start > 1 or end < 0:
             start = end = NAN
         interval = [start, end]
@@ -101,7 +101,7 @@ def _free_interval(A, B, C, eps):
 def _decision_problem(P, Q, eps):
     """Algorithm 1 of Alt & Godau (1995)."""
     # Decide reachablilty
-    B = np.empty((len(P) - 1, len(Q), 2), dtype=np.float_)
+    B = np.empty((len(P) - 1, len(Q), 2), dtype=np.float64)
     start, end = _free_interval(P[0], P[1], Q[0], eps)
     if start == 0:
         B[0, 0] = [start, end]
@@ -116,7 +116,7 @@ def _decision_problem(P, Q, eps):
                 continue
         B[i, 0] = [np.nan, np.nan]
 
-    L = np.empty((len(P), len(Q) - 1, 2), dtype=np.float_)
+    L = np.empty((len(P), len(Q) - 1, 2), dtype=np.float64)
     start, end = _free_interval(Q[0], Q[1], P[0], eps)
     if start == 0:
         L[0, 0] = [start, end]
@@ -177,7 +177,7 @@ def _fd(P, Q):
     """Algorithm 3 of Alt & Godau (1995)."""
     crit_a = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
 
-    crit_b = np.empty(2 * len(P) * len(Q) - len(P) - len(Q) + 1, dtype=np.float_)
+    crit_b = np.empty(2 * len(P) * len(Q) - len(P) - len(Q) + 1, dtype=np.float64)
     count = 0
     for i in range(len(P) - 1):
         for j in range(len(Q)):
@@ -265,7 +265,7 @@ def dfd(P, Q):
 
     Examples
     --------
-    >>> dfd([[0, 0], [1, 1], [2, 0]], [[0, 1], [2, -4]])
+    >>> float(dfd([[0, 0], [1, 1], [2, 0]], [[0, 1], [2, -4]]))
     4.0
     """
     dist = cdist(P, Q)
@@ -276,7 +276,7 @@ def dfd(P, Q):
 def _dfd(dist):
     # Eiter, T., & Mannila, H. (1994)
     p, q = dist.shape
-    ret = np.empty((p, q), dtype=np.float_)
+    ret = np.empty((p, q), dtype=np.float64)
 
     ret[0, 0] = dist[0, 0]
 

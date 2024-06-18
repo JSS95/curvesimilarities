@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-EPSILON = np.finfo(np.float_).eps
+EPSILON = np.finfo(np.float64).eps
 
 
 def sanitize_vertices_ifd(degenerate_fallback, owp):
@@ -33,9 +33,9 @@ def sanitize_vertices_ifd(degenerate_fallback, owp):
                 return func(P, Q, *args, **kwargs)
             elif len(P) == 1 and len(Q) == 1:
                 if owp:
-                    return np.float_(np.nan), np.empty((0, 2), dtype=np.float_)
+                    return np.float64(np.nan), np.empty((0, 2), dtype=np.float64)
                 else:
-                    return np.float_(np.nan)
+                    return np.float64(np.nan)
 
             # degenerate cases
             if len(P) == 1:
@@ -45,7 +45,7 @@ def sanitize_vertices_ifd(degenerate_fallback, owp):
 
             dist = degenerate_fallback(curve, point)
             if owp:
-                path = np.zeros((2, 2), dtype=np.float_)
+                path = np.zeros((2, 2), dtype=np.float64)
                 curve_len = np.sum(np.linalg.norm(np.diff(curve, axis=0), axis=-1))
                 path[1, curve_idx] = curve_len
                 return dist, path
@@ -128,12 +128,13 @@ def ifd(P, Q, delta):
 
     Examples
     --------
-    >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    >>> float(ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1))
     2.0
     """
-    return _ifd(
+    ret = _ifd(
         *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
     )
+    return np.float64(ret)
 
 
 @njit(cache=True)
@@ -158,9 +159,9 @@ def _ifd(
     Q_vert_indices[1:] = np.cumsum(Q_subedges_num)
 
     # Cost containers; elements will be updated.
-    P_costs = np.empty(len(P_pts), dtype=np.float_)
+    P_costs = np.empty(len(P_pts), dtype=np.float64)
     P_costs[0] = 0
-    Q_costs = np.empty(len(Q_pts), dtype=np.float_)
+    Q_costs = np.empty(len(Q_pts), dtype=np.float64)
     Q_costs[0] = 0
 
     # TODO: parallelize this i-loop.
@@ -231,11 +232,11 @@ def _cell_owcs(
     P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
 
     # Will be reused for each border point (t) to find best starting point (s).
-    p_cost_candidates = np.empty(len(p_pts), dtype=np.float_)
-    q_cost_candidates = np.empty(len(q_pts), dtype=np.float_)
+    p_cost_candidates = np.empty(len(p_pts), dtype=np.float64)
+    q_cost_candidates = np.empty(len(q_pts), dtype=np.float64)
 
-    s = np.empty((2,), dtype=np.float_)
-    t = np.empty((2,), dtype=np.float_)
+    s = np.empty((2,), dtype=np.float64)
+    t = np.empty((2,), dtype=np.float64)
 
     # compute upper boundary
     t[1] = L2
@@ -355,7 +356,7 @@ def ifd_owp(P, Q, delta):
     dist, owp = _ifd_owp(
         *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
     )
-    return dist, _refine_path(owp)
+    return np.float64(dist), _refine_path(owp)
 
 
 @njit(cache=True)
@@ -381,18 +382,18 @@ def _ifd_owp(
     Q_vert_indices[1:] = np.cumsum(Q_subedges_num)
 
     # Cost containers; elements will be updated.
-    P_costs = np.empty(len(P_pts), dtype=np.float_)
+    P_costs = np.empty(len(P_pts), dtype=np.float64)
     P_costs[0] = 0
-    Q_costs = np.empty(len(Q_pts), dtype=np.float_)
+    Q_costs = np.empty(len(Q_pts), dtype=np.float64)
     Q_costs[0] = 0
 
     # Path containers; elements will be updated.
     # Path passes (NP + NQ - 3) cells, and has 4 vertices in each cell ([s, cs, ct, t]
     # or [s, c', c', t]). (NP + NQ - 4) vertices overlap.
     MAX_PATH_VERT_NUM = (NP + NQ - 3) * 4 - (NP + NQ - 4)
-    P_paths = np.empty((len(P_pts), MAX_PATH_VERT_NUM, 2), dtype=np.float_)
+    P_paths = np.empty((len(P_pts), MAX_PATH_VERT_NUM, 2), dtype=np.float64)
     P_paths[0, 0] = [0, 0]
-    Q_paths = np.empty((len(Q_pts), MAX_PATH_VERT_NUM, 2), dtype=np.float_)
+    Q_paths = np.empty((len(Q_pts), MAX_PATH_VERT_NUM, 2), dtype=np.float64)
     Q_paths[0, 0] = [0, 0]
 
     # TODO: parallelize this i-loop.
@@ -489,13 +490,13 @@ def _cell_owps(
     """Optimal warping paths and their costs for all points in an cell."""
     P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
 
-    p_cost_candidates = np.empty(len(p_pts), dtype=np.float_)
-    q_cost_candidates = np.empty(len(q_pts), dtype=np.float_)
-    p_path_candidates = np.empty((len(p_pts), 3, 2), dtype=np.float_)
-    q_path_candidates = np.empty((len(q_pts), 3, 2), dtype=np.float_)
+    p_cost_candidates = np.empty(len(p_pts), dtype=np.float64)
+    q_cost_candidates = np.empty(len(q_pts), dtype=np.float64)
+    p_path_candidates = np.empty((len(p_pts), 3, 2), dtype=np.float64)
+    q_path_candidates = np.empty((len(q_pts), 3, 2), dtype=np.float64)
 
-    s = np.empty((2,), dtype=np.float_)
-    t = np.empty((2,), dtype=np.float_)
+    s = np.empty((2,), dtype=np.float64)
+    t = np.empty((2,), dtype=np.float64)
 
     # compute upper boundary
     t[1] = L2
@@ -683,12 +684,12 @@ def _sample_ifd_pts(P, Q, delta):
 def _sample_pts(vert, delta):
     N, D = vert.shape
     vert_diff = vert[1:] - vert[:-1]
-    edge_lens = np.empty(N - 1, dtype=np.float_)
+    edge_lens = np.empty(N - 1, dtype=np.float64)
     for i in range(N - 1):
         edge_lens[i] = np.linalg.norm(vert_diff[i])
     subedges_num = np.ceil(edge_lens / delta).astype(np.int_)
 
-    pts = np.empty((np.sum(subedges_num) + 1, D), dtype=np.float_)
+    pts = np.empty((np.sum(subedges_num) + 1, D), dtype=np.float64)
     count = 0
     for cell_idx in range(N - 1):
         P0 = vert[cell_idx]
@@ -712,11 +713,11 @@ def _cell_info(P_pts, L1, Q_pts, L2):
     Q1Q2 = Q2 - Q1
 
     if L1 < EPSILON:
-        u = np.array([0, 0], np.float_)
+        u = np.array([0, 0], np.float64)
     else:
         u = (P1P2) / L1
     if L2 < EPSILON:
-        v = np.array([0, 0], np.float_)
+        v = np.array([0, 0], np.float64)
     else:
         v = (Q1Q2) / L2
 
@@ -727,8 +728,8 @@ def _cell_info(P_pts, L1, Q_pts, L2):
     if np.abs(1 - u_dot_v**2) > EPSILON:
         # Find points P(s) and Q(t) where P and Q intersects.
         # (s, t) is on y = x + b
-        A = np.array([[1, -u_dot_v], [-u_dot_v, 1]], dtype=np.float_)
-        B = np.array([-np.dot(u, w), np.dot(v, w)], dtype=np.float_)
+        A = np.array([[1, -u_dot_v], [-u_dot_v, 1]], dtype=np.float64)
+        B = np.array([-np.dot(u, w), np.dot(v, w)], dtype=np.float64)
         s, t = np.linalg.solve(A, B)
         b = t - s
     else:
@@ -836,4 +837,4 @@ def _line_line_integrate(a, b, c, d):
             + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
             - (B**2 - 4 * C) * np.log(numer / denom)
         ) / 8
-    return (np.sqrt(A * D) + np.sqrt(A * E)) * integ
+    return np.sqrt(A * D) + np.sqrt(A * E) * integ

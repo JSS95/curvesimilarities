@@ -74,7 +74,7 @@ def dtw(P, Q):
     --------
     >>> P = np.linspace([0, 0], [1, 0], 10)
     >>> Q = np.linspace([0, 1], [1, 1], 20)
-    >>> dtw(P, Q)
+    >>> float(dtw(P, Q))
     20.0...
     """
     dist = cdist(P, Q)
@@ -116,7 +116,7 @@ def dtw_owp(P, Q):
         >>> P = np.linspace([0, 0], [1, 0], 10)
         >>> Q = np.linspace([0, 1], [1, 1], 20)
         >>> dist, path = dtw_owp(P, Q)
-        >>> dist / len(path)  # averaged dynamic time warping
+        >>> float(dist / len(path))  # averaged dynamic time warping
         1.00...
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T, "x")  #doctest: +SKIP
@@ -167,7 +167,7 @@ def sdtw(P, Q):
     --------
     >>> P = np.linspace([0, 0], [1, 0], 10)
     >>> Q = np.linspace([0, 1], [1, 1], 20)
-    >>> sdtw(P, Q)
+    >>> float(sdtw(P, Q))
     20.0...
     """
     dist = cdist(P, Q)
@@ -209,7 +209,7 @@ def sdtw_owp(P, Q):
         >>> P = np.linspace([0, 0], [1, 0], 10)
         >>> Q = np.linspace([0, 1], [1, 1], 20)
         >>> dist, path = sdtw_owp(P, Q)
-        >>> (dist / len(path))**0.5  # quadratic mean dynamic time warping
+        >>> float((dist / len(path))**0.5)  # quadratic mean dynamic time warping
         1.00...
         >>> import matplotlib.pyplot as plt #doctest: +SKIP
         >>> plt.plot(*path.T, "x")  #doctest: +SKIP
@@ -223,7 +223,7 @@ def sdtw_owp(P, Q):
 def _dtw_acm(cm):
     """Accumulated cost matrix for dynamic time warping."""
     p, q = cm.shape
-    ret = np.empty((p, q), dtype=np.float_)
+    ret = np.empty((p, q), dtype=np.float64)
 
     ret[0, 0] = cm[0, 0]
     for i in range(1, p):
