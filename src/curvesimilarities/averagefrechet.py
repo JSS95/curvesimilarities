@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 
-EPSILON = np.finfo(np.float_).eps
+EPSILON = np.finfo(np.float64).eps
 
 
 @njit(cache=True)
@@ -109,7 +109,7 @@ def afd(P, Q, delta):
 
     Examples
     --------
-    >>> afd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    >>> float(afd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1))
     1.0
     """
     (
@@ -255,7 +255,7 @@ def qafd(P, Q, delta):
 
     Examples
     --------
-    >>> qafd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    >>> float(qafd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1))
     1.0
     """
     (

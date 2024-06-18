@@ -12,8 +12,8 @@ def sanitize_vertices(owp):
 
         @functools.wraps(func)
         def wrapper(P, Q, *args, **kwargs):
-            P = np.asarray(P, dtype=np.float_)
-            Q = np.asarray(Q, dtype=np.float_)
+            P = np.asarray(P, dtype=np.float64)
+            Q = np.asarray(Q, dtype=np.float64)
 
             if len(P.shape) != 2:
                 raise ValueError("P must be a 2-dimensional array.")
@@ -24,9 +24,9 @@ def sanitize_vertices(owp):
 
             if P.size == 0 or Q.size == 0:
                 if owp:
-                    return np.float_(np.nan), np.empty((0, 2), dtype=np.int_)
+                    return np.float64(np.nan), np.empty((0, 2), dtype=np.int_)
                 else:
-                    return np.float_(np.nan)
+                    return np.float64(np.nan)
             return func(P, Q, *args, **kwargs)
 
         return wrapper

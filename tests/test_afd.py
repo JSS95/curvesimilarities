@@ -1,6 +1,6 @@
 import numpy as np
 
-from curvesimilarities import afd, qafd
+from curvesimilarities import afd, afd_owp, qafd, qafd_owp
 from curvesimilarities.averagefrechet import _line_point_square_integrate
 from curvesimilarities.integfrechet import _line_point_integrate
 
@@ -12,11 +12,21 @@ def test_afd():
     assert afd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1) == 1.0
 
 
+def test_afd_dtype():
+    assert afd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1).dtype == np.float64
+
+
+def test_afd_owp_dtype():
+    dist, path = afd_owp([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    assert dist.dtype == np.float64
+    assert path.dtype == np.float64
+
+
 def test_afd_degenerate():
 
     def check(P, Q):
-        P = np.asarray(P, dtype=np.float_)
-        Q = np.asarray(Q, dtype=np.float_)
+        P = np.asarray(P, dtype=np.float64)
+        Q = np.asarray(Q, dtype=np.float64)
         if len(P) == 1:
             point, curve = P, Q
         else:
@@ -29,11 +39,21 @@ def test_afd_degenerate():
     check([[0, 1], [2, 1]], [[0, 0]])
 
 
+def test_qafd_dtype():
+    assert qafd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1).dtype == np.float64
+
+
+def test_qafd_owp_dtype():
+    dist, path = qafd_owp([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    assert dist.dtype == np.float64
+    assert path.dtype == np.float64
+
+
 def test_qafd_degenerate():
 
     def check(P, Q):
-        P = np.asarray(P, dtype=np.float_)
-        Q = np.asarray(Q, dtype=np.float_)
+        P = np.asarray(P, dtype=np.float64)
+        Q = np.asarray(Q, dtype=np.float64)
         if len(P) == 1:
             point, curve = P, Q
         else:
