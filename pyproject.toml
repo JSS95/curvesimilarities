@@ -74,7 +74,6 @@ ignore = ["D004"]
 ignore-path = [
     "src/*.egg-info",
     "doc/build",
-    "doc/source/*.txt"
 ]
 
 [tool.pytest.ini_options]

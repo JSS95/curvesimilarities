@@ -110,16 +110,13 @@ def dtw_owp(P, Q):
 
     Examples
     --------
-    .. plot::
-        :include-source:
-
-        >>> P = np.linspace([0, 0], [1, 0], 10)
-        >>> Q = np.linspace([0, 1], [1, 1], 20)
-        >>> dist, path = dtw_owp(P, Q)
-        >>> float(dist / len(path))  # averaged dynamic time warping
-        1.00...
-        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-        >>> plt.plot(*path.T, "x")  #doctest: +SKIP
+    >>> P = np.linspace([0, 0], [1, 0], 10)
+    >>> Q = np.linspace([0, 1], [1, 1], 20)
+    >>> dist, path = dtw_owp(P, Q)
+    >>> float(dist / len(path))  # averaged dynamic time warping
+    1.00...
+    >>> import matplotlib.pyplot as plt #doctest: +SKIP
+    >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
     dist = cdist(P, Q)
     acm = _dtw_acm(dist)
@@ -203,16 +200,13 @@ def sdtw_owp(P, Q):
 
     Examples
     --------
-    .. plot::
-        :include-source:
-
-        >>> P = np.linspace([0, 0], [1, 0], 10)
-        >>> Q = np.linspace([0, 1], [1, 1], 20)
-        >>> dist, path = sdtw_owp(P, Q)
-        >>> float((dist / len(path))**0.5)  # quadratic mean dynamic time warping
-        1.00...
-        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-        >>> plt.plot(*path.T, "x")  #doctest: +SKIP
+    >>> P = np.linspace([0, 0], [1, 0], 10)
+    >>> Q = np.linspace([0, 1], [1, 1], 20)
+    >>> dist, path = sdtw_owp(P, Q)
+    >>> float((dist / len(path))**0.5)  # quadratic mean dynamic time warping
+    1.00...
+    >>> import matplotlib.pyplot as plt #doctest: +SKIP
+    >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
     dist = cdist(P, Q)
     acm = _dtw_acm(dist**2)

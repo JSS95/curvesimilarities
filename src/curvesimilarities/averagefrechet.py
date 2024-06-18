@@ -165,12 +165,9 @@ def afd_owp(P, Q, delta):
 
     Examples
     --------
-    .. plot::
-        :include-source:
-
-        >>> dist, path = afd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
-        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-        >>> plt.plot(*path.T)  #doctest: +SKIP
+    >>> dist, path = afd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
+    >>> import matplotlib.pyplot as plt #doctest: +SKIP
+    >>> plt.plot(*path.T)  #doctest: +SKIP
     """
     dist, path = ifd_owp(P, Q, delta)
     return dist / np.sum(path[-1]), path
@@ -311,12 +308,9 @@ def qafd_owp(P, Q, delta):
 
     Examples
     --------
-    .. plot::
-        :include-source:
-
-        >>> dist, path = qafd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
-        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-        >>> plt.plot(*path.T)  #doctest: +SKIP
+    >>> dist, path = qafd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
+    >>> import matplotlib.pyplot as plt #doctest: +SKIP
+    >>> plt.plot(*path.T)  #doctest: +SKIP
     """
     (
         P_edge_len,

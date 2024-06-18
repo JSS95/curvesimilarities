@@ -22,6 +22,13 @@ extensions = [
 
 autodoc_member_order = "bysource"
 
+numpydoc_use_plots = True
+numpydoc_show_class_members = False
+numpydoc_show_inherited_class_members = False
+numpydoc_class_members_toctree = False
+
+plot_include_source = True
+
 with open("plot_pre_code") as f:
     plot_pre_code = f.read()
 
@@ -37,3 +44,6 @@ html_theme_options = {
     },
     "show_toc_level": 3,
 }
+
+plot_html_show_formats = False
+plot_html_show_source_link = False

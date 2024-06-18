@@ -346,12 +346,9 @@ def ifd_owp(P, Q, delta):
 
     Examples
     --------
-    .. plot::
-        :include-source:
-
-        >>> dist, path = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
-        >>> import matplotlib.pyplot as plt #doctest: +SKIP
-        >>> plt.plot(*path.T)  #doctest: +SKIP
+    >>> dist, path = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
+    >>> import matplotlib.pyplot as plt #doctest: +SKIP
+    >>> plt.plot(*path.T)  #doctest: +SKIP
     """
     dist, owp = _ifd_owp(
         *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
