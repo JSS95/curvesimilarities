@@ -74,11 +74,11 @@ def dtw(P, Q):
     --------
     >>> P = np.linspace([0, 0], [1, 0], 10)
     >>> Q = np.linspace([0, 1], [1, 1], 20)
-    >>> float(dtw(P, Q))
+    >>> dtw(P, Q)
     20.0...
     """
     dist = cdist(P, Q)
-    return _dtw_acm(dist)[-1, -1]
+    return float(_dtw_acm(dist)[-1, -1])
 
 
 @sanitize_vertices(owp=True)
@@ -113,14 +113,14 @@ def dtw_owp(P, Q):
     >>> P = np.linspace([0, 0], [1, 0], 10)
     >>> Q = np.linspace([0, 1], [1, 1], 20)
     >>> dist, path = dtw_owp(P, Q)
-    >>> float(dist / len(path))  # averaged dynamic time warping
+    >>> dist / len(path)  # averaged dynamic time warping
     1.00...
     >>> import matplotlib.pyplot as plt #doctest: +SKIP
     >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
     dist = cdist(P, Q)
     acm = _dtw_acm(dist)
-    return acm[-1, -1], _dtw_owp(acm)
+    return float(acm[-1, -1]), _dtw_owp(acm)
 
 
 @sanitize_vertices(owp=False)
@@ -164,11 +164,11 @@ def sdtw(P, Q):
     --------
     >>> P = np.linspace([0, 0], [1, 0], 10)
     >>> Q = np.linspace([0, 1], [1, 1], 20)
-    >>> float(sdtw(P, Q))
+    >>> sdtw(P, Q)
     20.0...
     """
     dist = cdist(P, Q)
-    return _dtw_acm(dist**2)[-1, -1]
+    return float(_dtw_acm(dist**2)[-1, -1])
 
 
 @sanitize_vertices(owp=True)
@@ -203,14 +203,14 @@ def sdtw_owp(P, Q):
     >>> P = np.linspace([0, 0], [1, 0], 10)
     >>> Q = np.linspace([0, 1], [1, 1], 20)
     >>> dist, path = sdtw_owp(P, Q)
-    >>> float((dist / len(path))**0.5)  # quadratic mean dynamic time warping
+    >>> (dist / len(path))**0.5  # quadratic mean dynamic time warping
     1.00...
     >>> import matplotlib.pyplot as plt #doctest: +SKIP
     >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
     dist = cdist(P, Q)
     acm = _dtw_acm(dist**2)
-    return acm[-1, -1], _dtw_owp(acm)
+    return float(acm[-1, -1]), _dtw_owp(acm)
 
 
 @njit(cache=True)

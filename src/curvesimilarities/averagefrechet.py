@@ -109,7 +109,7 @@ def afd(P, Q, delta):
 
     Examples
     --------
-    >>> float(afd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1))
+    >>> afd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     1.0
     """
     (
@@ -130,7 +130,7 @@ def afd(P, Q, delta):
         _line_point_integrate,
         _line_line_integrate,
     )
-    return ifd / (np.sum(P_edge_len) + np.sum(Q_edge_len))
+    return float(ifd / (np.sum(P_edge_len) + np.sum(Q_edge_len)))
 
 
 @sanitize_vertices(owp=True)
@@ -170,7 +170,7 @@ def afd_owp(P, Q, delta):
     >>> plt.plot(*path.T)  #doctest: +SKIP
     """
     dist, path = ifd_owp(P, Q, delta)
-    return dist / np.sum(path[-1]), path
+    return float(dist / np.sum(path[-1])), path
 
 
 @njit(cache=True)
@@ -252,7 +252,7 @@ def qafd(P, Q, delta):
 
     Examples
     --------
-    >>> float(qafd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1))
+    >>> qafd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     1.0
     """
     (
@@ -273,7 +273,7 @@ def qafd(P, Q, delta):
         _line_point_square_integrate,
         _line_line_square_integrate,
     )
-    return np.sqrt(square_ifd / (np.sum(P_edge_len) + np.sum(Q_edge_len)))
+    return float(np.sqrt(square_ifd / (np.sum(P_edge_len) + np.sum(Q_edge_len))))
 
 
 @sanitize_vertices(owp=True)
@@ -330,7 +330,7 @@ def qafd_owp(P, Q, delta):
         _line_point_square_integrate,
         _line_line_square_integrate,
     )
-    return np.sqrt(dist / np.sum(path[-1])), _refine_path(path)
+    return float(np.sqrt(dist / np.sum(path[-1]))), _refine_path(path)
 
 
 @njit(cache=True)

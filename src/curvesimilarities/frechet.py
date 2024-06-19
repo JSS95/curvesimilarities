@@ -65,10 +65,10 @@ def fd(P, Q):
 
     Examples
     --------
-    >>> float(fd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]))
+    >>> fd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]])
     1.0...
     """
-    return np.float64(_fd(P, Q))
+    return float(_fd(P, Q))
 
 
 @njit(cache=True)
@@ -265,11 +265,11 @@ def dfd(P, Q):
 
     Examples
     --------
-    >>> float(dfd([[0, 0], [1, 1], [2, 0]], [[0, 1], [2, -4]]))
+    >>> dfd([[0, 0], [1, 1], [2, 0]], [[0, 1], [2, -4]])
     4.0
     """
     dist = cdist(P, Q)
-    return _dfd(dist)[-1, -1]
+    return float(_dfd(dist)[-1, -1])
 
 
 @njit(cache=True)

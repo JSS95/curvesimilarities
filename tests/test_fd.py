@@ -5,7 +5,7 @@ from curvesimilarities.frechet import _decision_problem, dfd, fd
 
 
 def test_fd_dtype():
-    assert fd([[0, 0], [1, 0]], [[0, 1], [1, 1]]).dtype == np.float64
+    assert type(fd([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float
 
 
 def test_fd_degenerate():
@@ -25,4 +25,4 @@ def test_decision_problem():
 
 
 def test_dfd_dtype():
-    assert dfd([[0, 0], [1, 0]], [[0, 1], [1, 1]]).dtype == np.float64
+    assert type(dfd([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float

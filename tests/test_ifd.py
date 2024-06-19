@@ -49,8 +49,7 @@ def test_ifd():
 
 def test_ifd_dtype():
     assert (
-        ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1).dtype
-        == np.float64
+        type(ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)) is float
     )
 
 
@@ -67,7 +66,7 @@ def test_ifd_owp():
 
 def test_ifd_owp_dtype():
     dist, path = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
-    assert dist.dtype == np.float64
+    assert type(dist) is float
     assert path.dtype == np.float64
 
 

@@ -5,7 +5,7 @@ from curvesimilarities import dtw, sdtw
 
 
 def test_dtw_dtype():
-    assert dtw([[0, 0], [1, 0]], [[0, 1], [1, 1]]).dtype == np.float64
+    assert type(dtw([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float
 
 
 def test_dtw_degenerate():
@@ -19,4 +19,4 @@ def test_dtw_degenerate():
 
 
 def test_sdtw_dtype():
-    assert sdtw([[0, 0], [1, 0]], [[0, 1], [1, 1]]).dtype == np.float64
+    assert type(sdtw([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float

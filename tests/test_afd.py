@@ -13,12 +13,12 @@ def test_afd():
 
 
 def test_afd_dtype():
-    assert afd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1).dtype == np.float64
+    assert type(afd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)) is float
 
 
 def test_afd_owp_dtype():
     dist, path = afd_owp([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
-    assert dist.dtype == np.float64
+    assert type(dist) is float
     assert path.dtype == np.float64
 
 
@@ -40,12 +40,12 @@ def test_afd_degenerate():
 
 
 def test_qafd_dtype():
-    assert qafd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1).dtype == np.float64
+    assert type(qafd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)) is float
 
 
 def test_qafd_owp_dtype():
     dist, path = qafd_owp([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
-    assert dist.dtype == np.float64
+    assert type(dist) is float
     assert path.dtype == np.float64
 
 
