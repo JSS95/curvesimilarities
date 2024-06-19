@@ -128,13 +128,13 @@ def ifd(P, Q, delta):
 
     Examples
     --------
-    >>> float(ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1))
+    >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     2.0
     """
     ret = _ifd(
         *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
     )
-    return np.float64(ret)
+    return float(ret)
 
 
 @njit(cache=True)
@@ -353,7 +353,7 @@ def ifd_owp(P, Q, delta):
     dist, owp = _ifd_owp(
         *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
     )
-    return np.float64(dist), _refine_path(owp)
+    return float(dist), _refine_path(owp)
 
 
 @njit(cache=True)
