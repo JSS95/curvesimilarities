@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Hausdorff distance.
 - `rel_tol` and `abs_tol` parameters to `fd()`.
 
 ### Changed

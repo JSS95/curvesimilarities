@@ -23,6 +23,12 @@ To reproduce the examples, run the following code first:
     The similarity functions do not sanitize the vertices of input polygonal curves.
     Make sure your curves do not have consecutive duplicate vertices.
 
+Hausdorff distance
+------------------
+
+.. automodule:: curvesimilarities.hausdorff
+    :members:
+
 Fréchet distance
 ----------------
 
