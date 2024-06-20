@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Curve distances are now `float` type.
 
+### Fixed
+
+- Issue of Fréchet distance failling to converge is fixed.
+
 ## [0.1.6] - 2024-06-15
 
 ### Fixed
