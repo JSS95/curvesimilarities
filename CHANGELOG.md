@@ -9,41 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `rel_tol` and `abs_tol` parameters to `fd()`.
+- `fd()` now accepts `rel_tol` and `abs_tol` arguments for its parametric search tolerance.
 
 ### Changed
 
-- Curve distances are now `float` type.
+- Every curve similarity function now returns the similarity in `float` type.
 
 ### Fixed
 
-- Issue of Fréchet distance failling to converge is fixed.
+- Convergence failure of `fd()` during its parametric search.
 
 ## [0.1.6] - 2024-06-15
 
 ### Fixed
 
-- xy-monotone axis of the level set of a cell from parallel lines.
+- Degenerate case during computing the XY-monotone axis of level set for `ifd()` and its variants.
 
 ## [0.1.5] - 2024-06-12
 
 ### Fixed
 
-- Optimal warping path of integral Fréchet distance.
+- Bug during computing `ifd_owp()` and its variants.
 
 ## [0.1.4] - 2024-06-10
 
 ### Fixed
 
-- Degenerate case from line-line integration.
+- Another degenerate case in line-line integration is now dealt with.
 
 ## [0.1.3] - 2024-06-07
 
 ### Added
 
-- Average Fréchet distance.
-- Quadratic average Fréchet distance.
-- Squared dynamic time warping.
+- Average Fréchet distance `afd()` and its optimal warping path `afd_owp()`.
+- Quadratic average Fréchet distance `qafd()` and its optimal warping path `qafd_owp()`.
+- Squared dynamic time warping distance `sdtw()` and its optimal warping path `sdtw_owp()`.
 
 ### Changed
 
@@ -61,21 +61,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Integral Fréchet distance.
+- Integral Fréchet distance `ifd()` and its optimal warping path `ifd_owp()`.
 
 ## [0.1.1] - 2024-05-22
 
 ### Added
 
-- Dynamic time warping.
+- Dynamic time warping `dtw()`, its accumulated cost matrix `dtw_acm()` and its optimal warping path `dtw_owp()`.
 
 ### Changed
 
-- Parametric search tolerance of Fréchet distance is now the machine epsilon of float64.
+- Parametric search tolerance of `fd()` is now the machine epsilon of float64.
 
 ## [0.1.0] - 2024-05-19
 
 ### Added
 
-- (Continuous) Fréchet distance.
-- Discrete Fréchet distance.
+- (Continuous) Fréchet distance `fd()`.
+- Discrete Fréchet distance `dfd()`.
