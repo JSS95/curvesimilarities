@@ -6,6 +6,7 @@ import numpy as np
 
 __all__ = [
     "sample_polyline",
+    "refine_polyline",
 ]
 
 
@@ -77,3 +78,48 @@ def sample_polyline(vert, param):
     t = param - vert_param[pt_vert_idx]
     seg_unitvec = seg_vec / seg_len[..., np.newaxis]
     return vert[pt_vert_idx] + t[..., np.newaxis] * seg_unitvec[pt_vert_idx]
+
+
+def refine_polyline(vert):
+    r"""Remove degenerate vertices from a polyline.
+
+    Consecutive duplicate vertices, and three or more vertices on a same line
+    are removed.
+
+    Parameters
+    ----------
+    vert : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+
+    Returns
+    -------
+    array_like
+        A :math:`q` by :math:`n` array of :math:`q \leq p` vertices in an
+        :math:`n`-dimensional space.
+
+    Examples
+    --------
+    >>> vert = [[0, 0], [0, 0], [1, 0], [2, 0]]
+    >>> refine_polyline(vert)
+    array([[0, 0],
+           [2, 0]])
+    """
+    ret = np.empty_like(vert)
+    ret[0] = vert[0]
+    count = 1
+
+    for i in range(1, len(vert)):
+        current = vert[i]
+        prev = ret[count - 1]
+        if np.all(prev == current):
+            continue
+        if count >= 2:
+            vec = current - prev
+            prev_vec = prev - ret[count - 2]
+            if np.dot(vec, prev_vec) == np.linalg.norm(vec) * np.linalg.norm(prev_vec):
+                ret[count - 1] = current
+                continue
+        ret[count] = current
+        count += 1
+    return ret[:count]
