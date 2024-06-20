@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `rel_tol` and `abs_tol` parameters to `fd()`.
+
 ### Changed
 
 - Curve distances are now `float` type.

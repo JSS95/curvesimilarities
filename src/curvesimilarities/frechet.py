@@ -17,7 +17,7 @@ NAN = np.float64(np.nan)
 
 
 @sanitize_vertices(owp=False)
-def fd(P, Q):
+def fd(P, Q, *, rel_tol=0.0, abs_tol=float(EPSILON)):
     r"""(Continuous) Fréchet distance between two open polygonal curves.
 
     Let :math:`f: [0, 1] \to \Omega` and :math:`g: [0, 1] \to \Omega` be curves
@@ -41,6 +41,10 @@ def fd(P, Q):
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
+    rel_tol, abs_tol: double
+        Relative and absolute tolerances for parametric search of the Fréchet distance.
+        The search is terminated if the upper boundary ``a`` and the lower boundary
+        ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
 
     Returns
     -------
@@ -68,7 +72,7 @@ def fd(P, Q):
     >>> fd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]])
     1.0...
     """
-    return float(_fd(P, Q))
+    return float(_fd(P, Q, rel_tol, abs_tol))
 
 
 @njit(cache=True)
@@ -173,7 +177,7 @@ def _critical_b(A, B, C):
 
 
 @njit(cache=True)
-def _fd(P, Q):
+def _fd(P, Q, rel_tol, abs_tol):
     """Algorithm 3 of Alt & Godau (1995)."""
     crit_a = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
 
@@ -206,8 +210,7 @@ def _fd(P, Q):
 
     # parametric search
     e1, e2 = crit_b[start], crit_b[end]
-    tol = EPSILON
-    while e2 - e1 > tol:
+    while e2 - e1 > max(rel_tol * e2, abs_tol):
         mid = (e1 + e2) / 2
         if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
             break
