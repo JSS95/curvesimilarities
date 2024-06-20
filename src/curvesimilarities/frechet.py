@@ -41,7 +41,7 @@ def fd(P, Q, *, rel_tol=0.0, abs_tol=float(EPSILON)):
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
-    rel_tol, abs_tol: double
+    rel_tol, abs_tol : double
         Relative and absolute tolerances for parametric search of the Fréchet distance.
         The search is terminated if the upper boundary ``a`` and the lower boundary
         ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
