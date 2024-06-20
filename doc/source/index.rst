@@ -46,3 +46,9 @@ Average Fréchet distance
 
 .. automodule:: curvesimilarities.averagefrechet
     :members:
+
+Utilities
+---------
+
+.. automodule:: curvesimilarities.util
+    :members:
