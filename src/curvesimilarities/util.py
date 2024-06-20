@@ -51,8 +51,8 @@ def sample_polyline(vert, param):
         An 1-D array of :math:`q` parameters for sampled points.
         Natural parametrization is used, i.e., the polygonal curve
         is parametrized by its arc length.
-        Parameter smaller than :math:`0` or larger than the total
-        arc length are clipped to the nearest value.
+        Parameters smaller than :math:`0` or larger than the total
+        arc length are clipped to the nearest valid value.
 
     Returns
     -------
