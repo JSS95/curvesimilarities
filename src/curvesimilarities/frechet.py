@@ -209,6 +209,8 @@ def _fd(P, Q):
     tol = EPSILON
     while e2 - e1 > tol:
         mid = (e1 + e2) / 2
+        if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
+            break
         mid_reachable = _decision_problem(P, Q, mid)
         if mid_reachable:
             e2 = mid
