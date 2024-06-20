@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Dynamic time warping `dtw()`, its accumulated cost matrix `dtw_acm()` and its optimal warping path `dtw_owp()`.
+- Dynamic time warping distance `dtw()`, its accumulated cost matrix `dtw_acm()` and its optimal warping path `dtw_owp()`.
 
 ### Changed
 
