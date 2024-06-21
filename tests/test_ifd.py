@@ -84,3 +84,9 @@ def test_ifd_owp_failedcases():
     _, owp = ifd_owp(P, Q, 5.0)
     assert owp[-1, 0] == np.sum(np.linalg.norm(np.diff(P, axis=0), axis=-1))
     assert owp[-1, 1] == np.sum(np.linalg.norm(np.diff(Q, axis=0), axis=-1))
+
+
+def test_ifd_owp_vertices_refined():
+    P, Q, delta = [[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1
+    _, path = ifd_owp(P, Q, delta)
+    assert not np.any(np.linalg.norm(np.diff(path, axis=0), axis=-1) == 0)

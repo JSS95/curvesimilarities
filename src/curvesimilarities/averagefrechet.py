@@ -8,7 +8,6 @@ from .integfrechet import (
     _ifd_owp,
     _line_line_integrate,
     _line_point_integrate,
-    _refine_path,
     _sample_ifd_pts,
     ifd_owp,
     sanitize_vertices_ifd,
@@ -320,7 +319,7 @@ def qafd_owp(P, Q, delta):
         Q_subedges_num,
         Q_pts,
     ) = _sample_ifd_pts(P, Q, delta)
-    dist, path = _ifd_owp(
+    dist, path, count = _ifd_owp(
         P_edge_len,
         P_subedges_num,
         P_pts,
@@ -330,7 +329,8 @@ def qafd_owp(P, Q, delta):
         _line_point_square_integrate,
         _line_line_square_integrate,
     )
-    return float(np.sqrt(dist / np.sum(path[-1]))), _refine_path(path)
+    owp = path[:count]
+    return float(np.sqrt(dist / np.sum(owp[-1]))), owp
 
 
 @njit(cache=True)
