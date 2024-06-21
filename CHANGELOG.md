@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Polyline sampling function `sample_polyline()` in `curvesimilarities.util` module.
 - Polyline refining function `refine_polyline()` in `curvesimilarities.util` module.
 - Parameter space function `parameter_space()` in `curvesimilarities.util` module.
+- Function `curvespace_path()` which converts parameter space path to curve space point pairs, in `curvesimilarities.util` module.
 
 ## [0.1.7] - 2024-06-20
 
