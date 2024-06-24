@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "curvesimilarities"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
     {name = "Jisoo Song", email = "jeesoo9595@snu.ac.kr"}
 ]
