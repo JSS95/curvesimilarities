@@ -791,16 +791,21 @@ def _cell_info(P_pts, L1, Q_pts, L2):
     # Can be acquired by finding points where distance is minimum.
     w = P1 - Q1
     u_dot_v = np.dot(u, v)
-    if np.abs(1 - u_dot_v**2) > EPSILON:
+    if 1 - u_dot_v < EPSILON:
+        # P and Q are parallel; equations degenerate into s - (u.v)t = -u.w
+        b = np.dot(u, w) / u_dot_v
+    elif u_dot_v + 1 < EPSILON:
+        # P and Q are antiparallel.
+        # Any value is OK, so just set b=0.
+        b = np.float64(0)
+    else:
+        # P and Q intersects.
         # Find points P(s) and Q(t) where P and Q intersects.
         # (s, t) is on y = x + b
         A = np.array([[1, -u_dot_v], [-u_dot_v, 1]], dtype=np.float64)
         B = np.array([-np.dot(u, w), np.dot(v, w)], dtype=np.float64)
         s, t = np.linalg.solve(A, B)
         b = t - s
-    else:
-        # P and Q are parallel; equations degenerate into s - (u.v)t = -u.w
-        b = np.dot(u, w) / u_dot_v
 
     delta_P = L1 / (len(P_pts) - 1)
     delta_Q = L2 / (len(Q_pts) - 1)
