@@ -644,81 +644,65 @@ def _st_owp(P1, u, Q1, v, b, s, t):
     Q_t = Q1 + v * t[1]
 
     verts = np.empty((4, 2), dtype=np.float64)
-    if np.all(s == t):
-        cost = np.float64(0)
-        verts[0] = s
-        count = 1
-        return cost, verts, count
-    elif s[0] == t[0]:
-        # Directly up
-        cost = _line_point_square_integrate(Q_s, Q_t, P_s)
-        verts[0] = s
-        verts[1] = t
-        count = 2
-        return cost, verts, count
-    elif s[1] == t[1]:
-        # Directly right
-        cost = _line_point_square_integrate(P_s, P_t, Q_s)
-        verts[0] = s
-        verts[1] = t
-        count = 2
-        return cost, verts, count
+    verts[0] = s
+    count = 1
+
+    if s[1] > s[0] + b:
+        cs_x, cs_y = s[1] - b, s[1]
     else:
-        if s[1] > s[0] + b:
-            cs_x, cs_y = s[1] - b, s[1]
-        else:
-            cs_x, cs_y = s[0], s[0] + b
-        if t[1] < t[0] + b:
-            ct_x, ct_y = t[1] - b, t[1]
-        else:
-            ct_x, ct_y = t[0], t[0] + b
+        cs_x, cs_y = s[0], s[0] + b
+    if t[1] < t[0] + b:
+        ct_x, ct_y = t[1] - b, t[1]
+    else:
+        ct_x, ct_y = t[0], t[0] + b
 
-        if cs_x < ct_x:  # pass through lm
-            P_cs = P1 + u * cs_x
-            P_ct = P1 + u * ct_x
-            Q_cs = Q1 + v * cs_y
-            Q_ct = Q1 + v * ct_y
+    if cs_x < ct_x:  # pass through lm
+        P_cs = P1 + u * cs_x
+        P_ct = P1 + u * ct_x
+        Q_cs = Q1 + v * cs_y
+        Q_ct = Q1 + v * ct_y
 
-            if s[1] > s[0] + b:  # right
-                s_to_cs = _line_point_square_integrate(P_s, P_cs, Q_s)
-            else:  # up
-                s_to_cs = _line_point_square_integrate(Q_s, Q_cs, P_s)
+        if s[1] > s[0] + b:  # right
+            s_to_cs = _line_point_square_integrate(P_s, P_cs, Q_s)
+        else:  # up
+            s_to_cs = _line_point_square_integrate(Q_s, Q_cs, P_s)
 
-            cs_to_ct = _line_line_square_integrate(P_cs, P_ct, Q_cs, Q_ct)
+        cs_to_ct = _line_line_square_integrate(P_cs, P_ct, Q_cs, Q_ct)
 
-            if t[1] > t[0] + b:  # up
-                ct_to_t = _line_point_square_integrate(Q_ct, Q_t, P_t)
-            else:  # right
-                ct_to_t = _line_point_square_integrate(P_ct, P_t, Q_t)
+        if t[1] > t[0] + b:  # up
+            ct_to_t = _line_point_square_integrate(Q_ct, Q_t, P_t)
+        else:  # right
+            ct_to_t = _line_point_square_integrate(P_ct, P_t, Q_t)
 
-            cost = s_to_cs + cs_to_ct + ct_to_t
-            verts[0] = s
-            count = 1
-            if s_to_cs > 0:
-                verts[count] = (cs_x, cs_y)
-                count += 1
-            if cs_to_ct > 0:
-                verts[count] = (ct_x, ct_y)
-                count += 1
-            if ct_to_t > 0:
-                verts[count] = t
-                count += 1
+        cost = s_to_cs + cs_to_ct + ct_to_t
+        if s_to_cs > 0:
+            verts[count] = (cs_x, cs_y)
+            count += 1
+        if cs_to_ct > 0:
+            verts[count] = (ct_x, ct_y)
+            count += 1
+        if ct_to_t > 0:
+            verts[count] = t
+            count += 1
 
-        else:  # pass c'
-            if s[1] > s[0] + b:  # right -> up
-                cost = _line_point_square_integrate(
-                    P_s, P_t, Q_s
-                ) + _line_point_square_integrate(Q_s, Q_t, P_t)
-                c_prime_x, c_prime_y = t[0], s[1]
-            else:  # up -> right
-                cost = _line_point_square_integrate(
-                    Q_s, Q_t, P_s
-                ) + _line_point_square_integrate(P_s, P_t, Q_t)
-                c_prime_x, c_prime_y = s[0], t[1]
-            verts[0] = s
-            verts[1] = (c_prime_x, c_prime_y)
-            verts[2] = t
-            count = 3
+    else:  # pass c'
+        if s[1] > s[0] + b:  # right -> up
+            cost1 = _line_point_square_integrate(P_s, P_t, Q_s)
+            cost2 = _line_point_square_integrate(Q_s, Q_t, P_t)
+            c_prime = (t[0], s[1])
+        else:  # up -> right
+            cost1 = _line_point_square_integrate(Q_s, Q_t, P_s)
+            cost2 = _line_point_square_integrate(P_s, P_t, Q_t)
+            c_prime = (s[0], t[1])
+
+        cost = cost1 + cost2
+        if cost1 > 0:
+            verts[count] = c_prime
+            count += 1
+        if cost2 > 0:
+            verts[count] = t
+            count += 1
+
     return cost, verts, count
 
 
