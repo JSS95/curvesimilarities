@@ -14,7 +14,8 @@ List of supported measures:
 - (Continuous) Fréchet distance (`fd()`)
 - Discrete Fréchet distance (`dfd()`)
 - Integral Fréchet distance (`ifd()`)
-- Average Fréchet distance (`afd()`)
+
+... and more.
 
 ## Usage
 

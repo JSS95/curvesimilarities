@@ -1,35 +1,18 @@
 import numpy as np
 
 from curvesimilarities import ifd, ifd_owp
-from curvesimilarities.integfrechet import (
-    _cell_info,
-    _line_line_integrate,
-    _line_point_integrate,
-)
+from curvesimilarities.integfrechet import _cell_info, _line_point_square_integrate
 
 
 def test_ifd_degenerate():
 
     P = np.asarray([[0, 0]], dtype=np.float64)
     Q = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
-    assert ifd(P, Q, 0.1) == _line_point_integrate(Q[0], Q[1], P[0])
+    assert ifd(P, Q, 0.1) == _line_point_square_integrate(Q[0], Q[1], P[0])
 
     P = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
     Q = np.asarray([[0, 0]], dtype=np.float64)
-    assert ifd(P, Q, 0.1) == _line_point_integrate(P[0], P[1], Q[0])
-
-
-def test_integration_degenerates():
-    # test if integration can handle degenerate cases without error.
-    A = np.array([1, 0], dtype=np.float64)
-    B = np.array([2, 0], dtype=np.float64)
-
-    _line_point_integrate(A, A, np.array([3, 3], dtype=np.float64))
-    _line_point_integrate(A, B, (A + B) / 2)
-
-    _line_line_integrate(A, B, A + 1, B + 1)
-    _line_line_integrate(A, B, A, np.array([3, 3], dtype=np.float64))
-    _line_line_integrate(A, B, B, A)
+    assert ifd(P, Q, 0.1) == _line_point_square_integrate(P[0], P[1], Q[0])
 
 
 def test_lm():
@@ -93,4 +76,9 @@ def test_ifd_owp_vertices_refined():
 
     P, Q, delta = [[0, 0], [1, 1]], [[0, 1], [1, 0]], 0.1
     _, path = ifd_owp(P, Q, delta)
+    assert not np.any(np.linalg.norm(np.diff(path, axis=0), axis=-1) == 0)
+
+    P = [[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]]
+    Q = [[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]]
+    _, path = ifd_owp(P, Q, 0.1)
     assert not np.any(np.linalg.norm(np.diff(path, axis=0), axis=-1) == 0)
