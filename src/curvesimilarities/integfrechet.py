@@ -4,7 +4,6 @@ import functools
 
 import numpy as np
 from numba import njit
-from numba.np.extensions import cross2d
 
 from .util import sanitize_vertices
 
@@ -62,7 +61,7 @@ def ifd_degenerate(curve, point):
     ret = 0
     for i in range(len(curve) - 1):
         a, b = curve[i], curve[i + 1]
-        ret += _line_point_integrate(a, b, point)
+        ret += _line_point_square_integrate(a, b, point)
     return ret
 
 
@@ -87,7 +86,7 @@ def ifd(P, Q, delta):
     where :math:`\delta\left(\pi(t)\right)` is a distance between
     :math:`f\left(\alpha(t)\right)` and :math:`g\left(\beta(t)\right)` in
     :math:`\Omega` and :math:`\lVert \cdot \rVert` is a norm in :math:`[0, 1]
-    \times [0, 1]`. In this implementation, we use the Euclidean distance
+    \times [0, 1]`. In this implementation, we use the squared Euclidean distance
     for :math:`\delta` and the Manhattan norm for :math:`\lVert \cdot \rVert`.
 
     Parameters
@@ -131,9 +130,7 @@ def ifd(P, Q, delta):
     >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
     2.0
     """
-    ret = _ifd(
-        *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
-    )
+    ret = _ifd(*_sample_ifd_pts(P, Q, delta))
     return float(ret)
 
 
@@ -145,8 +142,6 @@ def _ifd(
     Q_edge_len,
     Q_subedges_num,
     Q_pts,
-    line_point_cost,
-    line_line_cost,
 ):
     NP = len(P_subedges_num) + 1
     P_vert_indices = np.empty(NP, dtype=np.int_)
@@ -197,8 +192,6 @@ def _ifd(
                 j == 0,
                 i == NP - 2,
                 j == NQ - 2,
-                line_point_cost,
-                line_line_cost,
             )
 
             # store for the next loops
@@ -223,8 +216,6 @@ def _cell_owcs(
     q_is_initial,
     p_is_last,
     q_is_last,
-    line_point_cost,
-    line_line_cost,
 ):
     """Optimal warping costs for all points in an cell."""
     # p_costs = lower boundary, p_costs_out = upper boundary,
@@ -254,7 +245,7 @@ def _cell_owcs(
             q_end_idx = len(q_pts)
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
             q_cost_candidates[j] = q_costs[j] + cost
 
         s[1] = 0
@@ -265,7 +256,7 @@ def _cell_owcs(
         p_cost_candidates[0] = q_cost_candidates[0]  # cost from [0, 0] already known.
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
             p_cost_candidates[i_] = p_costs[i_] + cost
 
         p_costs_out[i] = min(
@@ -291,7 +282,7 @@ def _cell_owcs(
             p_end_idx = len(p_pts)
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
             p_cost_candidates[i] = p_costs[i] + cost
 
         s[0] = 0
@@ -302,7 +293,7 @@ def _cell_owcs(
         q_cost_candidates[0] = p_cost_candidates[0]  # cost from [0, 0] already known.
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
             q_cost_candidates[j_] = q_costs[j_] + cost
 
         q_costs_out[j] = min(
@@ -350,9 +341,7 @@ def ifd_owp(P, Q, delta):
     >>> import matplotlib.pyplot as plt #doctest: +SKIP
     >>> plt.plot(*path.T)  #doctest: +SKIP
     """
-    dist, owp, count = _ifd_owp(
-        *_sample_ifd_pts(P, Q, delta), _line_point_integrate, _line_line_integrate
-    )
+    dist, owp, count = _ifd_owp(*_sample_ifd_pts(P, Q, delta))
     return float(dist), owp[:count]
 
 
@@ -364,8 +353,6 @@ def _ifd_owp(
     Q_edge_len,
     Q_subedges_num,
     Q_pts,
-    line_point_cost,
-    line_line_cost,
 ):
     # Same as _ifd(), but stores paths so needs more memory.
     NP = len(P_subedges_num) + 1
@@ -468,8 +455,6 @@ def _ifd_owp(
                 j == 0,
                 i == NP - 2,
                 j == NQ - 2,
-                line_point_cost,
-                line_line_cost,
             )
 
             if j == 0:
@@ -505,8 +490,6 @@ def _cell_owps(
     q_is_initial,
     p_is_last,
     q_is_last,
-    line_point_cost,
-    line_line_cost,
 ):
     """Optimal warping paths and their costs for all points in an cell."""
     P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
@@ -537,11 +520,9 @@ def _cell_owps(
             q_end_idx = len(q_pts)
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            cost, vert, count = _st_owp(
-                P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost
-            )
+            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
             q_cost_candidates[j] = q_costs[j] + cost
-            q_path_candidates[j, : count - 1] = vert[1:count] - vert[0]
+            q_path_candidates[j, : count - 1] = (vert - vert[0])[1:count]
             q_count_candidates[j] = count - 1
 
         s[1] = 0
@@ -554,11 +535,9 @@ def _cell_owps(
         p_count_candidates[0] = q_count_candidates[0]
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            cost, vert, count = _st_owp(
-                P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost
-            )
+            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
             p_cost_candidates[i_] = p_costs[i_] + cost
-            p_path_candidates[i_, : count - 1] = vert[1:count] - vert[0]
+            p_path_candidates[i_, : count - 1] = (vert - vert[0])[1:count]
             p_count_candidates[i_] = count - 1
 
         p_min_idx = np.argmin(p_cost_candidates[:p_end_idx])
@@ -601,11 +580,9 @@ def _cell_owps(
             p_end_idx = len(p_pts)
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            cost, vert, count = _st_owp(
-                P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost
-            )
+            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
             p_cost_candidates[i] = p_costs[i] + cost
-            p_path_candidates[i, : count - 1] = vert[1:count] - vert[0]
+            p_path_candidates[i, : count - 1] = (vert - vert[0])[1:count]
             p_count_candidates[i] = count - 1
 
         s[0] = 0
@@ -618,11 +595,9 @@ def _cell_owps(
         q_count_candidates[0] = p_count_candidates[0]
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            cost, vert, count = _st_owp(
-                P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost
-            )
+            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
             q_cost_candidates[j_] = q_costs[j_] + cost
-            q_path_candidates[j_, : count - 1] = vert[1:count] - vert[0]
+            q_path_candidates[j_, : count - 1] = (vert - vert[0])[1:count]
             q_count_candidates[j_] = count - 1
 
         p_min_idx = np.argmin(p_cost_candidates[:p_end_idx])
@@ -661,7 +636,7 @@ def _cell_owps(
 
 
 @njit(cache=True)
-def _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost):
+def _st_owp(P1, u, Q1, v, b, s, t):
     """Optimal warping path between two points in a cell and its cost."""
     P_s = P1 + u * s[0]
     P_t = P1 + u * t[0]
@@ -669,16 +644,21 @@ def _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost):
     Q_t = Q1 + v * t[1]
 
     verts = np.empty((4, 2), dtype=np.float64)
-    if s[0] == t[0]:
+    if np.all(s == t):
+        cost = np.float64(0)
+        verts[0] = s
+        count = 1
+        return cost, verts, count
+    elif s[0] == t[0]:
         # Directly up
-        cost = line_point_cost(Q_s, Q_t, P_s)
+        cost = _line_point_square_integrate(Q_s, Q_t, P_s)
         verts[0] = s
         verts[1] = t
         count = 2
         return cost, verts, count
     elif s[1] == t[1]:
         # Directly right
-        cost = line_point_cost(P_s, P_t, Q_s)
+        cost = _line_point_square_integrate(P_s, P_t, Q_s)
         verts[0] = s
         verts[1] = t
         count = 2
@@ -700,16 +680,16 @@ def _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost):
             Q_ct = Q1 + v * ct_y
 
             if s[1] > s[0] + b:  # right
-                s_to_cs = line_point_cost(P_s, P_cs, Q_s)
+                s_to_cs = _line_point_square_integrate(P_s, P_cs, Q_s)
             else:  # up
-                s_to_cs = line_point_cost(Q_s, Q_cs, P_s)
+                s_to_cs = _line_point_square_integrate(Q_s, Q_cs, P_s)
 
-            cs_to_ct = line_line_cost(P_cs, P_ct, Q_cs, Q_ct)
+            cs_to_ct = _line_line_square_integrate(P_cs, P_ct, Q_cs, Q_ct)
 
             if t[1] > t[0] + b:  # up
-                ct_to_t = line_point_cost(Q_ct, Q_t, P_t)
+                ct_to_t = _line_point_square_integrate(Q_ct, Q_t, P_t)
             else:  # right
-                ct_to_t = line_point_cost(P_ct, P_t, Q_t)
+                ct_to_t = _line_point_square_integrate(P_ct, P_t, Q_t)
 
             cost = s_to_cs + cs_to_ct + ct_to_t
             verts[0] = s
@@ -726,10 +706,14 @@ def _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost):
 
         else:  # pass c'
             if s[1] > s[0] + b:  # right -> up
-                cost = line_point_cost(P_s, P_t, Q_s) + line_point_cost(Q_s, Q_t, P_t)
+                cost = _line_point_square_integrate(
+                    P_s, P_t, Q_s
+                ) + _line_point_square_integrate(Q_s, Q_t, P_t)
                 c_prime_x, c_prime_y = t[0], s[1]
             else:  # up -> right
-                cost = line_point_cost(Q_s, Q_t, P_s) + line_point_cost(P_s, P_t, Q_t)
+                cost = _line_point_square_integrate(
+                    Q_s, Q_t, P_s
+                ) + _line_point_square_integrate(P_s, P_t, Q_t)
                 c_prime_x, c_prime_y = s[0], t[1]
             verts[0] = s
             verts[1] = (c_prime_x, c_prime_y)
@@ -825,83 +809,40 @@ def _cell_info(P_pts, L1, Q_pts, L2):
 
 
 @njit(cache=True)
-def _line_point_integrate(a, b, p):
-    r"""Analytic integration from AP to BP.
+def _line_point_square_integrate(a, b, p):
+    r"""Analytic integration from AP to BP (squared).
 
     .. math::
-        \int_0^1 \lVert (A - P) + (B - A) t \rVert \cdot \lVert (B - A) \rVert dt
+        \int_0^1 \lVert (A - P) + (B - A) t \rVert^2 \cdot \lVert (B - A) \rVert dt
     """
-    # Goal: integrate sqrt(A*t**2 + B*t + C) * sqrt(A) dt over t [0, 1]
+    # integrate (A*t**2 + B*t + C) * sqrt(A) dt over t [0, 1]
     # where A = dot(ab, ab), B = 2 * dot(pa, ab) and C = dot(pa, pa).
-    # Can be simplified to A * integral sqrt(t**2 + B/A*t + C/A) dt.
-    # Rewrite: A * integral sqrt(t**2 + B*t + C) dt over t [0, 1]
-    # where B = 2 * dot(pa, ab) / A and C = dot(pa, pa) / A.
     ab = b - a
-    A = np.dot(ab, ab)
-    if A < EPSILON:
-        # Degenerate: ab does not form line segement.
-        return 0
     pa = a - p
-    if np.abs(cross2d(ab, pa)) < EPSILON:
-        # Degenerate: a, b, p all on a same line.
-        t = np.dot(ab, pa) / A
-        L1 = np.dot(pa, pa)
-        bp = p - b
-        L2 = np.dot(bp, bp)
-        if t < 0:
-            return (L2 - L1) / 2
-        elif t > 1:
-            return (L1 - L2) / 2
-        else:
-            return (L1 + L2) / 2
-    B = 2 * np.dot(ab, pa) / A
-    C = np.dot(pa, pa) / A
-    integ = (
-        4 * np.sqrt(1 + B + C)
-        + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
-        - (B**2 - 4 * C)
-        * np.log((2 + B + 2 * np.sqrt(1 + B + C)) / (B + 2 * np.sqrt(C)))
-    ) / 8
-    return A * integ
+    A = np.dot(ab, ab)
+    B = 2 * np.dot(ab, pa)
+    C = np.dot(pa, pa)
+    return (A / 3 + B / 2 + C) * np.sqrt(A)
 
 
 @njit(cache=True)
-def _line_line_integrate(a, b, c, d):
-    r"""Analytic integration from AC to BD.
+def _line_line_square_integrate(a, b, c, d):
+    r"""Analytic integration from AC to BD (squared).
 
     .. math::
-        \int_0^1 \lVert (A - C) + (B - A + C - D)t \rVert \cdot
+        \int_0^1 \lVert (A - C) + (B - A + C - D)t \rVert^2 \cdot
         \left( \lVert B - A \rVert + \lVert D - C \rVert \right) dt
     """
-    # Goal: integrate sqrt(A*t**2 + B*t + C) * (sqrt(D) + sqrt(E)) dt over t [0, 1]
+    # integrate (A*t**2 + B*t + C) * (sqrt(D) + sqrt(E)) dt over t [0, 1]
     # where A = dot(vu, vu), B = 2 * dot(vu, w), C = dot(w, w), D = dot(u, u),
     # and E = dot(v, v); where u = b - a, v = d - c and w = a - c.
-    # Rewrite: (sqrt(A*D) + sqrt(A*E)) * integral sqrt(t**2 + B*t + C) dt over t [0, 1]
-    # where B = 2 * dot(vu, w) / A and C = dot(w, w) / A
-    u, v, w = b - a, d - c, a - c
+    u = b - a
+    v = d - c
+    w = a - c
     vu = u - v
     A = np.dot(vu, vu)
-    C, D, E = np.dot(w, w), np.dot(u, u), np.dot(v, v)
-    if A < EPSILON:
-        # Degenerate: ab and cd has same direction and magnitude
-        return np.sqrt(C * D) + np.sqrt(C * E)
-    B, C = 2 * np.dot(vu, w) / A, C / A
-    if np.abs(B) < EPSILON and C < EPSILON:
-        # Degenerate: B and C are 0 (either w = 0 or A is too large)
-        return (np.sqrt(A * D) + np.sqrt(A * E)) / 2
-    numer = 2 + B + 2 * np.sqrt(1 + B + C)
-    denom = B + 2 * np.sqrt(C)
-    if np.abs(numer) < EPSILON or np.abs(denom) < EPSILON:
-        # Degenerate: u-v and w are on the opposite direction
-        # B**2 = 4*C, therefore integral sqrt((t + B/2)**2) dt over t [0, 1]
-        if B > 0 or B < -2:
-            integ = (np.abs(B / 2) + np.abs(1 + B / 2)) / 2
-        else:
-            integ = (np.abs(B / 2) ** 2) / 2 + (np.abs(1 + B / 2) ** 2) / 2
-    else:
-        integ = (
-            4 * np.sqrt(1 + B + C)
-            + 2 * B * (-np.sqrt(C) + np.sqrt(1 + B + C))
-            - (B**2 - 4 * C) * np.log(numer / denom)
-        ) / 8
-    return np.sqrt(A * D) + np.sqrt(A * E) * integ
+    B = 2 * np.dot(vu, w)
+    C = np.dot(w, w)
+    D = np.dot(u, u)
+    E = np.dot(v, v)
+    return (A / 3 + B / 2 + C) * (np.sqrt(D) + np.sqrt(E))

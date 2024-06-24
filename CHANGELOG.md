@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parameter space function `parameter_space()`.
 - Function `curvespace_path()` which converts parameter space path to curve space point pairs.
 
+### Fixed
+
+**Integral Fréchet distance (`curvesimilarities.integfrechet`)**
+
+- Squared Euclidean distance is used instead of Euclidean distance.
+
+### Removed
+
+**Average Fréchet distance (`curvesimilarities.averagefrechet`)**
+
+- Average Fréchet distance `afd()` and its optimal warping path `afd_owp()`.
+
 ## [0.1.7] - 2024-06-20
 
 ### Added
