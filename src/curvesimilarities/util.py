@@ -96,6 +96,15 @@ def parameter_space(P, Q, p_num, q_num):
 
         >>> eps = fd(P, Q)
         >>> plt.pcolormesh(p, q, weight.T < eps, cmap="gray")  # doctest: +SKIP
+
+    Optimal warping path with integral Fréchet distance:
+
+    .. plot::
+        :context: close-figs
+
+        >>> _, owp = ifd_owp(P, Q, 0.1)
+        >>> plt.pcolormesh(p, q, weight.T)  # doctest: +SKIP
+        >>> plt.plot(*owp.T, "k")  # doctest: +SKIP
     """
     p_vert = np.insert(np.cumsum(np.linalg.norm((np.diff(P, axis=0)), axis=-1)), 0, 0)
     p_coord = np.linspace(0, p_vert[-1], p_num)
