@@ -714,14 +714,15 @@ def _st_owp(P1, u, Q1, v, b, s, t, line_point_cost, line_line_cost):
             cost = s_to_cs + cs_to_ct + ct_to_t
             verts[0] = s
             count = 1
-            if verts[count - 1, 0] != cs_x or verts[count - 1, 1] != cs_y:
+            if s_to_cs > 0:
                 verts[count] = (cs_x, cs_y)
                 count += 1
-            if verts[count - 1, 0] != ct_x or verts[count - 1, 1] != ct_y:
+            if cs_to_ct > 0:
                 verts[count] = (ct_x, ct_y)
                 count += 1
-            verts[count] = t
-            count += 1
+            if ct_to_t > 0:
+                verts[count] = t
+                count += 1
 
         else:  # pass c'
             if s[1] > s[0] + b:  # right -> up
