@@ -337,7 +337,7 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
 
     Returns
     -------
-    dist : double
+    ifd : double
         The integral Fréchet distance between *P* and *Q*, NaN if any vertice
         is empty or both vertices consist of a single point.
     owp : ndarray
@@ -352,7 +352,7 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
     Examples
     --------
     >>> P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]]
-    >>> dist, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
+    >>> _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
     >>> import matplotlib.pyplot as plt #doctest: +SKIP
     >>> plt.plot(*path.T)  #doctest: +SKIP
     """
@@ -370,10 +370,10 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
         return np.float64(np.nan), np.empty((0, 2), dtype=np.float64)
 
     if len(P) != 1 and len(Q) != 1:
-        dist, owp, count = _ifd_owp(
+        ifd, owp, count = _ifd_owp(
             *_sample_ifd_pts(P, Q, delta), linepoint_cost, lineline_cost
         )
-        return float(dist), owp[:count]
+        return float(ifd), owp[:count]
     elif len(P) == 1 and len(Q) == 1:
         return np.float64(np.nan), np.empty((0, 2), dtype=np.float64)
     else:
