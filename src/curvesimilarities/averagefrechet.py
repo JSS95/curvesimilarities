@@ -6,7 +6,7 @@ from numba import njit
 from .integfrechet import (
     _ifd,
     _ifd_owp,
-    _line_point_square_integrate,
+    _line_point_integrate_SqEuc,
     _sample_ifd_pts,
     sanitize_vertices_ifd,
 )
@@ -24,7 +24,7 @@ def qafd_degenerate(curve, point):
     length = 0
     for i in range(len(curve) - 1):
         a, b = curve[i], curve[i + 1]
-        ret += _line_point_square_integrate(a, b, point)
+        ret += _line_point_integrate_SqEuc(a, b, point)
         length += np.linalg.norm(b - a)
     return np.sqrt(ret / length)
 

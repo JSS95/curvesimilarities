@@ -1,18 +1,18 @@
 import numpy as np
 
 from curvesimilarities import ifd, ifd_owp
-from curvesimilarities.integfrechet import _cell_info, _line_point_square_integrate
+from curvesimilarities.integfrechet import _cell_info, _line_point_integrate_SqEuc
 
 
 def test_ifd_degenerate():
 
     P = np.asarray([[0, 0]], dtype=np.float64)
     Q = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
-    assert ifd(P, Q, 0.1) == _line_point_square_integrate(Q[0], Q[1], P[0])
+    assert ifd(P, Q, 0.1) == _line_point_integrate_SqEuc(Q[0], Q[1], P[0])
 
     P = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
     Q = np.asarray([[0, 0]], dtype=np.float64)
-    assert ifd(P, Q, 0.1) == _line_point_square_integrate(P[0], P[1], Q[0])
+    assert ifd(P, Q, 0.1) == _line_point_integrate_SqEuc(P[0], P[1], Q[0])
 
 
 def test_lm():

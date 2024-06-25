@@ -4,6 +4,7 @@ import functools
 
 import numpy as np
 from numba import njit
+from scipy.integrate import quad
 
 from .util import sanitize_vertices
 
@@ -61,7 +62,7 @@ def ifd_degenerate(curve, point):
     ret = 0
     for i in range(len(curve) - 1):
         a, b = curve[i], curve[i + 1]
-        ret += _line_point_square_integrate(a, b, point)
+        ret += _line_point_integrate_SqEuc(a, b, point)
     return ret
 
 
@@ -663,16 +664,16 @@ def _st_owp(P1, u, Q1, v, b, s, t):
         Q_ct = Q1 + v * ct_y
 
         if s[1] > s[0] + b:  # right
-            s_to_cs = _line_point_square_integrate(P_s, P_cs, Q_s)
+            s_to_cs = _line_point_integrate_SqEuc(P_s, P_cs, Q_s)
         else:  # up
-            s_to_cs = _line_point_square_integrate(Q_s, Q_cs, P_s)
+            s_to_cs = _line_point_integrate_SqEuc(Q_s, Q_cs, P_s)
 
-        cs_to_ct = _line_line_square_integrate(P_cs, P_ct, Q_cs, Q_ct)
+        cs_to_ct = _line_line_integrate_SqEuc(P_cs, P_ct, Q_cs, Q_ct)
 
         if t[1] > t[0] + b:  # up
-            ct_to_t = _line_point_square_integrate(Q_ct, Q_t, P_t)
+            ct_to_t = _line_point_integrate_SqEuc(Q_ct, Q_t, P_t)
         else:  # right
-            ct_to_t = _line_point_square_integrate(P_ct, P_t, Q_t)
+            ct_to_t = _line_point_integrate_SqEuc(P_ct, P_t, Q_t)
 
         cost = s_to_cs + cs_to_ct + ct_to_t
         if s_to_cs > 0:
@@ -687,12 +688,12 @@ def _st_owp(P1, u, Q1, v, b, s, t):
 
     else:  # pass c'
         if s[1] > s[0] + b:  # right -> up
-            cost1 = _line_point_square_integrate(P_s, P_t, Q_s)
-            cost2 = _line_point_square_integrate(Q_s, Q_t, P_t)
+            cost1 = _line_point_integrate_SqEuc(P_s, P_t, Q_s)
+            cost2 = _line_point_integrate_SqEuc(Q_s, Q_t, P_t)
             c_prime = (t[0], s[1])
         else:  # up -> right
-            cost1 = _line_point_square_integrate(Q_s, Q_t, P_s)
-            cost2 = _line_point_square_integrate(P_s, P_t, Q_t)
+            cost1 = _line_point_integrate_SqEuc(Q_s, Q_t, P_s)
+            cost2 = _line_point_integrate_SqEuc(P_s, P_t, Q_t)
             c_prime = (s[0], t[1])
 
         cost = cost1 + cost2
@@ -797,9 +798,40 @@ def _cell_info(P_pts, L1, Q_pts, L2):
     return P1, Q1, u, v, b, delta_P, delta_Q
 
 
+def _line_point_integrate_Euc(a, b, p):
+    r"""Numerical integration from AP to BP (Euclidean).
+
+    .. math::
+        \int_0^1 \lVert (A - P) + (B - A) t \rVert \cdot \lVert (B - A) \rVert dt
+    """
+    ab = b - a
+    pa = a - p
+    A = np.dot(ab, ab)
+    B = 2 * np.dot(ab, pa)
+    C = np.dot(pa, pa)
+    integ, _ = quad(lambda t: np.sqrt(A * t**2 + B * t + C), 0, 1)
+    return integ * np.sqrt(A)
+
+
+def _line_line_integrate_Euc(a, b, c, d):
+    r"""Numerical integration from AC to BD (Euclidean).
+
+    .. math::
+        \int_0^1 \lVert (A - C) + (B - A + C - D)t \rVert \cdot
+        \left( \lVert B - A \rVert + \lVert D - C \rVert \right) dt
+    """
+    u, v, w = b - a, d - c, a - c
+    vu = u - v
+    A = np.dot(vu, vu)
+    B = 2 * np.dot(vu, w)
+    C, D, E = np.dot(w, w), np.dot(u, u), np.dot(v, v)
+    integ, _ = quad(lambda t: np.sqrt(A * t**2 + B * t + C), 0, 1)
+    return integ * (np.sqrt(D) + np.sqrt(E))
+
+
 @njit(cache=True)
-def _line_point_square_integrate(a, b, p):
-    r"""Analytic integration from AP to BP (squared).
+def _line_point_integrate_SqEuc(a, b, p):
+    r"""Analytic integration from AP to BP (squared Euclidean).
 
     .. math::
         \int_0^1 \lVert (A - P) + (B - A) t \rVert^2 \cdot \lVert (B - A) \rVert dt
@@ -815,8 +847,8 @@ def _line_point_square_integrate(a, b, p):
 
 
 @njit(cache=True)
-def _line_line_square_integrate(a, b, c, d):
-    r"""Analytic integration from AC to BD (squared).
+def _line_line_integrate_SqEuc(a, b, c, d):
+    r"""Analytic integration from AC to BD (squared Euclidean).
 
     .. math::
         \int_0^1 \lVert (A - C) + (B - A + C - D)t \rVert^2 \cdot

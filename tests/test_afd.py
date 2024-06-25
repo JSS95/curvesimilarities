@@ -1,7 +1,7 @@
 import numpy as np
 
 from curvesimilarities import qafd, qafd_owp
-from curvesimilarities.averagefrechet import _line_point_square_integrate
+from curvesimilarities.averagefrechet import _line_point_integrate_SqEuc
 
 
 def test_qafd_dtype():
@@ -24,7 +24,7 @@ def test_qafd_degenerate():
         else:
             point, curve = Q, P
         curve_len = np.sum(np.linalg.norm(np.diff(curve, axis=0), axis=-1))
-        integ = _line_point_square_integrate(curve[0], curve[1], point[0])
+        integ = _line_point_integrate_SqEuc(curve[0], curve[1], point[0])
         assert qafd(P, Q, 0.1) == np.sqrt(integ / curve_len)
 
     check([[0, 0]], [[0, 1], [2, 1]])
