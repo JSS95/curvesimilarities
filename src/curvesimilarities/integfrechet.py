@@ -1,12 +1,10 @@
 """Integral Fréchet distance."""
 
-import functools
-
 import numpy as np
-from numba import njit
+from numba import jit, njit
 from scipy.integrate import quad
 
-from .util import sanitize_vertices
+from .util import _sanitize_vertices
 
 __all__ = [
     "ifd",
@@ -17,58 +15,35 @@ __all__ = [
 EPSILON = np.finfo(np.float64).eps
 
 
-def sanitize_vertices_ifd(degenerate_fallback, owp):
-    """Decorator to sanitize the vertices for IFD and its variants.
-
-    The integral-based Fréchet distance variants must return NaN for two
-    degenerate curves with zero-lengths to avoid returning false zero-value.
-    Use this decorator with :func:`sanitize_vertices`.
-    """
-
-    def decorator(func):
-
-        @functools.wraps(func)
-        def wrapper(P, Q, *args, **kwargs):
-            if len(P) != 1 and len(Q) != 1:
-                return func(P, Q, *args, **kwargs)
-            elif len(P) == 1 and len(Q) == 1:
-                if owp:
-                    return np.float64(np.nan), np.empty((0, 2), dtype=np.float64)
-                else:
-                    return np.float64(np.nan)
-
-            # degenerate cases
-            if len(P) == 1:
-                curve, point, curve_idx = Q, P[0], 1
-            else:
-                curve, point, curve_idx = P, Q[0], 0
-
-            dist = degenerate_fallback(curve, point)
-            if owp:
-                path = np.zeros((2, 2), dtype=np.float64)
-                curve_len = np.sum(np.linalg.norm(np.diff(curve, axis=0), axis=-1))
-                path[1, curve_idx] = curve_len
-                return dist, path
-            else:
-                return dist
-
-        return wrapper
-
-    return decorator
-
-
 @njit(cache=True)
-def ifd_degenerate(curve, point):
+def _ifd_degenerate(P, Q, costfunc):
+    if len(P) == 1:
+        curve, point = Q, P[0]
+    else:
+        curve, point = P, Q[0]
     ret = 0
     for i in range(len(curve) - 1):
         a, b = curve[i], curve[i + 1]
-        ret += _line_point_integrate_SqEuc(a, b, point)
+        ret += costfunc(a, b, point)
     return ret
 
 
-@sanitize_vertices(owp=False)
-@sanitize_vertices_ifd(ifd_degenerate, owp=False)
-def ifd(P, Q, delta):
+@njit(cache=True)
+def _ifd_degenerate_owp(P, Q, costfunc):
+    path = np.zeros((2, 2), dtype=np.float64)
+    if len(P) == 1:
+        curve, point, curve_idx = Q, P[0], 1
+    else:
+        curve, point, curve_idx = P, Q[0], 0
+    ret = 0
+    for i in range(len(curve) - 1):
+        a, b = curve[i], curve[i + 1]
+        ret += costfunc(a, b, point)
+        path[-1, curve_idx] += np.linalg.norm(b - a)
+    return ret, path
+
+
+def ifd(P, Q, delta, dist="euclidean"):
     r"""Integral Fréchet distance between two open polygonal curves.
 
     Let :math:`f, g: [0, 1] \to \Omega` be curves defined in a metric space
@@ -80,15 +55,14 @@ def ifd(P, Q, delta):
     .. math::
 
         \inf_{\pi} \int_0^1
-        \delta\left(\pi(t)\right) \cdot
-        \lVert \pi'(t) \rVert
+        dist\left(\pi(t)\right) \cdot
+        \lVert \pi'(t) \rVert_1
         \mathrm{d}t,
 
-    where :math:`\delta\left(\pi(t)\right)` is a distance between
+    where :math:`dist\left(\pi(t)\right)` is a distance between
     :math:`f\left(\alpha(t)\right)` and :math:`g\left(\beta(t)\right)` in
-    :math:`\Omega` and :math:`\lVert \cdot \rVert` is a norm in :math:`[0, 1]
-    \times [0, 1]`. In this implementation, we use the squared Euclidean distance
-    for :math:`\delta` and the Manhattan norm for :math:`\lVert \cdot \rVert`.
+    :math:`\Omega` and :math:`\lVert \cdot \rVert_1` is the Manhattan norm in
+    :math:`[0, 1] \times [0, 1]`.
 
     Parameters
     ----------
@@ -100,10 +74,12 @@ def ifd(P, Q, delta):
         :math:`n`-dimensional space.
     delta : double
         Maximum length of edges between Steiner points.
+    dist : {'euclidean', 'squared_euclidean'}
+        Type of :math:`dist`. Refer to the Notes section for more information.
 
     Returns
     -------
-    dist : double
+    double
         The integral Fréchet distance between *P* and *Q*, NaN if any vertice
         is empty or both vertices consist of a single point.
 
@@ -120,6 +96,18 @@ def ifd(P, Q, delta):
     -----
     This function implements the algorithm of Brankovic et al [#]_.
 
+    The following measures are available for :math:`dist`:
+
+    1. Euclidean distance
+        .. math::
+
+            dist\left(p, q\right) = \lVert p - q \rVert_2
+
+    2. Squared Euclidean distance
+        .. math::
+
+            dist\left(p, q\right) = \lVert p - q \rVert_2^2
+
     References
     ----------
     .. [#] Brankovic, M., et al. "(k, l)-Medians Clustering of Trajectories Using
@@ -128,14 +116,33 @@ def ifd(P, Q, delta):
 
     Examples
     --------
-    >>> ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
+    >>> P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]
+    >>> ifd(P, Q, 0.1, "squared_euclidean")
     2.0
     """
-    ret = _ifd(*_sample_ifd_pts(P, Q, delta))
-    return float(ret)
+    if dist == "euclidean":
+        # TODO: use _line_point_integrate_Euc and _line_line_integrate_Euc
+        raise NotImplementedError
+    elif dist == "squared_euclidean":
+        linepoint_cost = _line_point_integrate_SqEuc
+        lineline_cost = _line_line_integrate_SqEuc
+    else:
+        raise ValueError(f"Unknown type of distance: {dist}")
+
+    P, Q = _sanitize_vertices(P, Q)
+    if P.size == 0 or Q.size == 0:
+        return np.float64(np.nan)
+
+    if len(P) != 1 and len(Q) != 1:
+        ret = _ifd(*_sample_ifd_pts(P, Q, delta), linepoint_cost, lineline_cost)
+        return float(ret)
+    elif len(P) == 1 and len(Q) == 1:
+        return np.float64(np.nan)
+    else:
+        return _ifd_degenerate(P, Q, linepoint_cost)
 
 
-@njit(cache=True)
+@jit(cache=True)
 def _ifd(
     P_edge_len,
     P_subedges_num,
@@ -143,6 +150,8 @@ def _ifd(
     Q_edge_len,
     Q_subedges_num,
     Q_pts,
+    linepoint_cost,
+    lineline_cost,
 ):
     NP = len(P_subedges_num) + 1
     P_vert_indices = np.empty(NP, dtype=np.int_)
@@ -193,6 +202,8 @@ def _ifd(
                 j == 0,
                 i == NP - 2,
                 j == NQ - 2,
+                linepoint_cost,
+                lineline_cost,
             )
 
             # store for the next loops
@@ -203,7 +214,7 @@ def _ifd(
     return Q_costs[-1]
 
 
-@njit(cache=True)
+@jit(cache=True)
 def _cell_owcs(
     L1,
     p_pts,
@@ -217,6 +228,8 @@ def _cell_owcs(
     q_is_initial,
     p_is_last,
     q_is_last,
+    linepoint_cost,
+    lineline_cost,
 ):
     """Optimal warping costs for all points in an cell."""
     # p_costs = lower boundary, p_costs_out = upper boundary,
@@ -246,7 +259,7 @@ def _cell_owcs(
             q_end_idx = len(q_pts)
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost)
             q_cost_candidates[j] = q_costs[j] + cost
 
         s[1] = 0
@@ -257,7 +270,7 @@ def _cell_owcs(
         p_cost_candidates[0] = q_cost_candidates[0]  # cost from [0, 0] already known.
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost)
             p_cost_candidates[i_] = p_costs[i_] + cost
 
         p_costs_out[i] = min(
@@ -283,7 +296,7 @@ def _cell_owcs(
             p_end_idx = len(p_pts)
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost)
             p_cost_candidates[i] = p_costs[i] + cost
 
         s[0] = 0
@@ -294,7 +307,7 @@ def _cell_owcs(
         q_cost_candidates[0] = p_cost_candidates[0]  # cost from [0, 0] already known.
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, _, _ = _st_owp(P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost)
             q_cost_candidates[j_] = q_costs[j_] + cost
 
         q_costs_out[j] = min(
@@ -306,9 +319,7 @@ def _cell_owcs(
     return q_costs_out[:1], p_costs_out[:1]
 
 
-@sanitize_vertices(owp=True)
-@sanitize_vertices_ifd(ifd_degenerate, owp=True)
-def ifd_owp(P, Q, delta):
+def ifd_owp(P, Q, delta, dist="euclidean"):
     """Integral Fréchet distance and its optimal warping path.
 
     Parameters
@@ -321,6 +332,8 @@ def ifd_owp(P, Q, delta):
         :math:`n`-dimensional space.
     delta : double
         Maximum length of edges between Steiner points.
+    dist : {'euclidean', 'squared_euclidean'}
+        Type of :math:`dist`. Refer to :func:`ifd`.
 
     Returns
     -------
@@ -338,15 +351,36 @@ def ifd_owp(P, Q, delta):
 
     Examples
     --------
-    >>> dist, path = ifd_owp([[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]], 0.1)
+    >>> P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0.5, 1], [1.5, 1]]
+    >>> dist, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
     >>> import matplotlib.pyplot as plt #doctest: +SKIP
     >>> plt.plot(*path.T)  #doctest: +SKIP
     """
-    dist, owp, count = _ifd_owp(*_sample_ifd_pts(P, Q, delta))
-    return float(dist), owp[:count]
+    if dist == "euclidean":
+        # TODO: use _line_point_integrate_Euc and _line_line_integrate_Euc
+        raise NotImplementedError
+    elif dist == "squared_euclidean":
+        linepoint_cost = _line_point_integrate_SqEuc
+        lineline_cost = _line_line_integrate_SqEuc
+    else:
+        raise ValueError(f"Unknown type of distance: {dist}")
+
+    P, Q = _sanitize_vertices(P, Q)
+    if P.size == 0 or Q.size == 0:
+        return np.float64(np.nan), np.empty((0, 2), dtype=np.float64)
+
+    if len(P) != 1 and len(Q) != 1:
+        dist, owp, count = _ifd_owp(
+            *_sample_ifd_pts(P, Q, delta), linepoint_cost, lineline_cost
+        )
+        return float(dist), owp[:count]
+    elif len(P) == 1 and len(Q) == 1:
+        return np.float64(np.nan), np.empty((0, 2), dtype=np.float64)
+    else:
+        return _ifd_degenerate_owp(P, Q, linepoint_cost)
 
 
-@njit(cache=True)
+@jit(cache=True)
 def _ifd_owp(
     P_edge_len,
     P_subedges_num,
@@ -354,6 +388,8 @@ def _ifd_owp(
     Q_edge_len,
     Q_subedges_num,
     Q_pts,
+    linepoint_cost,
+    lineline_cost,
 ):
     # Same as _ifd(), but stores paths so needs more memory.
     NP = len(P_subedges_num) + 1
@@ -456,6 +492,8 @@ def _ifd_owp(
                 j == 0,
                 i == NP - 2,
                 j == NQ - 2,
+                linepoint_cost,
+                lineline_cost,
             )
 
             if j == 0:
@@ -469,7 +507,7 @@ def _ifd_owp(
     return Q_costs[-1], Q_paths[-1], Q_count[-1]
 
 
-@njit(cache=True)
+@jit(cache=True)
 def _cell_owps(
     L1,
     p_pts,
@@ -491,6 +529,8 @@ def _cell_owps(
     q_is_initial,
     p_is_last,
     q_is_last,
+    linepoint_cost,
+    lineline_cost,
 ):
     """Optimal warping paths and their costs for all points in an cell."""
     P1, Q1, u, v, b, delta_P, delta_Q = _cell_info(p_pts, L1, q_pts, L2)
@@ -521,7 +561,9 @@ def _cell_owps(
             q_end_idx = len(q_pts)
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, vert, count = _st_owp(
+                P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost
+            )
             q_cost_candidates[j] = q_costs[j] + cost
             q_path_candidates[j, : count - 1] = (vert - vert[0])[1:count]
             q_count_candidates[j] = count - 1
@@ -536,7 +578,9 @@ def _cell_owps(
         p_count_candidates[0] = q_count_candidates[0]
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, vert, count = _st_owp(
+                P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost
+            )
             p_cost_candidates[i_] = p_costs[i_] + cost
             p_path_candidates[i_, : count - 1] = (vert - vert[0])[1:count]
             p_count_candidates[i_] = count - 1
@@ -581,7 +625,9 @@ def _cell_owps(
             p_end_idx = len(p_pts)
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, vert, count = _st_owp(
+                P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost
+            )
             p_cost_candidates[i] = p_costs[i] + cost
             p_path_candidates[i, : count - 1] = (vert - vert[0])[1:count]
             p_count_candidates[i] = count - 1
@@ -596,7 +642,9 @@ def _cell_owps(
         q_count_candidates[0] = p_count_candidates[0]
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            cost, vert, count = _st_owp(P1, u, Q1, v, b, s, t)
+            cost, vert, count = _st_owp(
+                P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost
+            )
             q_cost_candidates[j_] = q_costs[j_] + cost
             q_path_candidates[j_, : count - 1] = (vert - vert[0])[1:count]
             q_count_candidates[j_] = count - 1
@@ -636,8 +684,8 @@ def _cell_owps(
     )
 
 
-@njit(cache=True)
-def _st_owp(P1, u, Q1, v, b, s, t):
+@jit(cache=True)
+def _st_owp(P1, u, Q1, v, b, s, t, linepoint_cost, lineline_cost):
     """Optimal warping path between two points in a cell and its cost."""
     P_s = P1 + u * s[0]
     P_t = P1 + u * t[0]
@@ -664,16 +712,16 @@ def _st_owp(P1, u, Q1, v, b, s, t):
         Q_ct = Q1 + v * ct_y
 
         if s[1] > s[0] + b:  # right
-            s_to_cs = _line_point_integrate_SqEuc(P_s, P_cs, Q_s)
+            s_to_cs = linepoint_cost(P_s, P_cs, Q_s)
         else:  # up
-            s_to_cs = _line_point_integrate_SqEuc(Q_s, Q_cs, P_s)
+            s_to_cs = linepoint_cost(Q_s, Q_cs, P_s)
 
-        cs_to_ct = _line_line_integrate_SqEuc(P_cs, P_ct, Q_cs, Q_ct)
+        cs_to_ct = lineline_cost(P_cs, P_ct, Q_cs, Q_ct)
 
         if t[1] > t[0] + b:  # up
-            ct_to_t = _line_point_integrate_SqEuc(Q_ct, Q_t, P_t)
+            ct_to_t = linepoint_cost(Q_ct, Q_t, P_t)
         else:  # right
-            ct_to_t = _line_point_integrate_SqEuc(P_ct, P_t, Q_t)
+            ct_to_t = linepoint_cost(P_ct, P_t, Q_t)
 
         cost = s_to_cs + cs_to_ct + ct_to_t
         if s_to_cs > 0:
@@ -688,12 +736,12 @@ def _st_owp(P1, u, Q1, v, b, s, t):
 
     else:  # pass c'
         if s[1] > s[0] + b:  # right -> up
-            cost1 = _line_point_integrate_SqEuc(P_s, P_t, Q_s)
-            cost2 = _line_point_integrate_SqEuc(Q_s, Q_t, P_t)
+            cost1 = linepoint_cost(P_s, P_t, Q_s)
+            cost2 = linepoint_cost(Q_s, Q_t, P_t)
             c_prime = (t[0], s[1])
         else:  # up -> right
-            cost1 = _line_point_integrate_SqEuc(Q_s, Q_t, P_s)
-            cost2 = _line_point_integrate_SqEuc(P_s, P_t, Q_t)
+            cost1 = linepoint_cost(Q_s, Q_t, P_s)
+            cost2 = linepoint_cost(P_s, P_t, Q_t)
             c_prime = (s[0], t[1])
 
         cost = cost1 + cost2
