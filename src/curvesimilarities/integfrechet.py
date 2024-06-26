@@ -60,9 +60,8 @@ def ifd(P, Q, delta, dist="euclidean"):
         \mathrm{d}t,
 
     where :math:`dist\left(\pi(t)\right)` is a distance between
-    :math:`f\left(\alpha(t)\right)` and :math:`g\left(\beta(t)\right)` in
-    :math:`\Omega` and :math:`\lVert \cdot \rVert_1` is the Manhattan norm in
-    :math:`[0, 1] \times [0, 1]`.
+    :math:`f\left(\alpha(t)\right)` and :math:`g\left(\beta(t)\right)` and
+    :math:`\lVert \cdot \rVert_1` is the Manhattan norm.
 
     Parameters
     ----------
@@ -74,6 +73,7 @@ def ifd(P, Q, delta, dist="euclidean"):
         :math:`n`-dimensional space.
     delta : double
         Maximum length of edges between Steiner points.
+        Refer to the Reference section for more information.
     dist : {'euclidean', 'squared_euclidean'}
         Type of :math:`dist`. Refer to the Notes section for more information.
 
@@ -96,12 +96,16 @@ def ifd(P, Q, delta, dist="euclidean"):
     -----
     This function implements the algorithm of Brankovic et al [#]_.
 
-    The following measures are available for :math:`dist`:
+    The following functions are available for :math:`dist`:
 
     1. Euclidean distance
         .. math::
 
             dist\left(p, q\right) = \lVert p - q \rVert_2
+
+        .. note::
+
+            This distance is not implemented yet.
 
     2. Squared Euclidean distance
         .. math::
@@ -331,7 +335,7 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
     delta : double
-        Maximum length of edges between Steiner points.
+        Maximum length of edges between Steiner points. Refer to :func:`ifd`.
     dist : {'euclidean', 'squared_euclidean'}
         Type of :math:`dist`. Refer to :func:`ifd`.
 

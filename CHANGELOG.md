@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Integral Fréchet distance (`curvesimilarities.integfrechet`)**
 
 - `ifd()` and `ifd_owp()` now take `dist` argument to specify the distance type.
-- `ifd()` and `ifd_owp()` now use the Euclidean distance as default (not implemented yet).
+- `ifd()` and `ifd_owp()` now use the Euclidean distance as default (which is not implemented yet).
 
 ### Removed
 
