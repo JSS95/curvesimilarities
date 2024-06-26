@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ifd()` and `ifd_owp()` now take `dist` argument to specify the distance type.
 - `ifd()` and `ifd_owp()` now use the Euclidean distance as default (which is not implemented yet).
 
+**Utility (`curvesimilarities.util`)**
+
+- `curvespace_path()` is renamed to `curve_matching()`.
+
 ### Removed
 
 **Average Fréchet distance (`curvesimilarities.averagefrechet`)**

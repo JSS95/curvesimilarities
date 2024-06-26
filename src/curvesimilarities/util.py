@@ -7,7 +7,7 @@ from scipy.spatial.distance import cdist
 
 __all__ = [
     "parameter_space",
-    "curvespace_path",
+    "curve_matching",
     "sample_polyline",
     "refine_polyline",
 ]
@@ -128,8 +128,8 @@ def parameter_space(P, Q, p_num, q_num):
     return cdist(P_pts, Q_pts), p_coord, q_coord, p_vert, q_vert
 
 
-def curvespace_path(P, Q, path, sample_num):
-    """Return point pairs in curve space defined by a path in parameter space.
+def curve_matching(P, Q, path, sample_num):
+    """Return pairs of points in curve space defined by a path in parameter space.
 
     Parameters
     ----------
@@ -155,7 +155,7 @@ def curvespace_path(P, Q, path, sample_num):
     >>> P = [[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]]
     >>> Q = [[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]]
     >>> _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
-    >>> pairs = curvespace_path(P, Q, path, 100)
+    >>> pairs = curve_matching(P, Q, path, 100)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
     >>> plt.plot(*np.array(P).T)  # doctest: +SKIP
     >>> plt.plot(*np.array(Q).T)  # doctest: +SKIP
