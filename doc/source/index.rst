@@ -41,12 +41,6 @@ Integral Fréchet distance
 .. automodule:: curvesimilarities.integfrechet
     :members:
 
-Average Fréchet distance
-------------------------
-
-.. automodule:: curvesimilarities.averagefrechet
-    :members:
-
 Utilities
 ---------
 

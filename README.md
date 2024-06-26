@@ -15,8 +15,6 @@ List of supported measures:
 - Discrete Fréchet distance (`dfd()`)
 - Integral Fréchet distance (`ifd()`)
 
-... and more.
-
 ## Usage
 
 ```python

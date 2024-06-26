@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+**Integral Fréchet distance (`curvesimilarities.integfrechet`)**
+
+- `ifd()` and `ifd_owp()` now take `dist` argument to specify the distance type.
+- `ifd()` and `ifd_owp()` now use the Euclidean distance as default (which is not implemented yet).
+
+### Removed
+
+**Average Fréchet distance (`curvesimilarities.averagefrechet`)**
+
+- `curvesimilarities.averagefrechet` is removed.
+
 ## [0.2.1] - 2024-06-24
 
 ### Fixed
@@ -24,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parameter space function `parameter_space()`.
 - Function `curvespace_path()` which converts parameter space path to curve space point pairs.
 
-### Fixed
+### Changed
 
 **Integral Fréchet distance (`curvesimilarities.integfrechet`)**
 

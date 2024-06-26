@@ -13,6 +13,19 @@ __all__ = [
 ]
 
 
+def _sanitize_vertices(P, Q):
+    P = np.asarray(P, dtype=np.float64)
+    Q = np.asarray(Q, dtype=np.float64)
+
+    if len(P.shape) != 2:
+        raise ValueError("P must be a 2-dimensional array.")
+    if len(Q.shape) != 2:
+        raise ValueError("Q must be a 2-dimensional array.")
+    if P.shape[1] != Q.shape[1]:
+        raise ValueError("P and Q must have the same number of columns.")
+    return P, Q
+
+
 def sanitize_vertices(owp):
     """Decorator to sanitize the vertices."""
 
@@ -102,7 +115,7 @@ def parameter_space(P, Q, p_num, q_num):
     .. plot::
         :context: close-figs
 
-        >>> _, owp = ifd_owp(P, Q, 0.1)
+        >>> _, owp = ifd_owp(P, Q, 0.1, "squared_euclidean")
         >>> plt.pcolormesh(p, q, weight.T)  # doctest: +SKIP
         >>> plt.plot(*owp.T, "k")  # doctest: +SKIP
     """
@@ -141,7 +154,7 @@ def curvespace_path(P, Q, path, sample_num):
     --------
     >>> P = [[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]]
     >>> Q = [[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]]
-    >>> _, path = ifd_owp(P, Q, 0.1)
+    >>> _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
     >>> pairs = curvespace_path(P, Q, path, 100)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
     >>> plt.plot(*np.array(P).T)  # doctest: +SKIP
