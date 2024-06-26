@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+**Dynamic time warping (`curvesimilarities.dtw`)**
+
+- `dtw()` and `dtw_owp()` now take `dist` argument to specify the distance type.
+
 **Integral Fréchet distance (`curvesimilarities.integfrechet`)**
 
 - `ifd()` and `ifd_owp()` now take `dist` argument to specify the distance type.
@@ -19,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Average Fréchet distance (`curvesimilarities.averagefrechet`)**
 
 - `curvesimilarities.averagefrechet` is removed.
+
+**Dynamic time warping (`curvesimilarities.dtw`)**
+
+- `sdtw()` and `sdtw_owp()` are removed. Use `dtw()` and `dtw_owp()` with `dist` argument instead.
 
 ## [0.2.1] - 2024-06-24
 

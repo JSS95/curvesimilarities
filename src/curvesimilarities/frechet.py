@@ -225,11 +225,11 @@ def _fd(P, Q, rel_tol, abs_tol):
 
 @sanitize_vertices(owp=False)
 def dfd(P, Q):
-    r"""Discrete Fréchet distance between two open polygonal curves.
+    r"""Discrete Fréchet distance between two two ordered sets of points.
 
-    Let :math:`\{P_0, P_1, ..., P_n\}` and :math:`\{Q_0, Q_1, ..., Q_m\}` be
-    polyline vertices in metric space. The discrete Fréchet distance between
-    two polylines is defined as
+    Let :math:`\{P_0, P_1, ..., P_n\}` and :math:`\{Q_0, Q_1, ..., Q_m\}` be ordered
+    sets of points in metric space. The discrete Fréchet distance between two sets is
+    defined as
 
     .. math::
 

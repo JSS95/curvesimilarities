@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 
-from curvesimilarities import dtw, sdtw
+from curvesimilarities import dtw
 
 
 def test_dtw_dtype():
@@ -16,7 +16,3 @@ def test_dtw_degenerate():
     check([[0, 0]], [[0, 1]])
     check([[0, 0], [1, 0]], [[0, 1]])
     check([[0, 0]], [[0, 1], [1, 1]])
-
-
-def test_sdtw_dtype():
-    assert type(sdtw([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float

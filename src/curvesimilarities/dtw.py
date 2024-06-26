@@ -14,27 +14,24 @@ from .util import sanitize_vertices
 __all__ = [
     "dtw",
     "dtw_owp",
-    "sdtw",
-    "sdtw_owp",
 ]
 
 
 @sanitize_vertices(owp=False)
-def dtw(P, Q):
-    r"""Dynamic time warping distance.
+def dtw(P, Q, dist="euclidean"):
+    r"""Dynamic time warping distance between two ordered sets of points.
 
-    Let :math:`\{P_0, P_1, ..., P_n\}` and :math:`\{Q_0, Q_1, ..., Q_m\}` be
-    polyline vertices in metric space. The dynamic time warping distance between
-    two polylines is defined as
+    Let :math:`\{P_0, P_1, ..., P_n\}` and :math:`\{Q_0, Q_1, ..., Q_m\}` be ordered
+    sets of points in metric space. The dynamic time warping distance between
+    two sets is defined as
 
     .. math::
 
-        \min_{C} \sum_{(i, j) \in C} \lVert P_i - Q_j \rVert,
+        \min_{C} \sum_{(i, j) \in C} dist\left(P_i, Q_j\right),
 
     where :math:`C` is a nondecreasing coupling over
     :math:`\{0, ..., n\} \times \{0, ..., m\}`, starting from :math:`(0, 0)` and
-    ending with :math:`(n, m)`. :math:`\lVert \cdot \rVert` is the underlying
-    metric, which is the Euclidean metric in this implementation.
+    ending with :math:`(n, m)`.
 
     Parameters
     ----------
@@ -44,10 +41,12 @@ def dtw(P, Q):
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
+    dist : {'euclidean', 'squared_euclidean'}
+        Type of :math:`dist`. Refer to the Notes section for more information.
 
     Returns
     -------
-    dist : double
+    double
         The dynamic time warping distance between *P* and *Q*, NaN if any vertice
         is empty.
 
@@ -64,6 +63,18 @@ def dtw(P, Q):
     -----
     This function implements the algorithm described by Senin [#]_.
 
+    The following functions are available for :math:`dist`:
+
+    1. Euclidean distance
+        .. math::
+
+            dist\left(p, q\right) = \lVert p - q \rVert_2
+
+    2. Squared Euclidean distance
+        .. math::
+
+            dist\left(p, q\right) = \lVert p - q \rVert_2^2
+
     References
     ----------
     .. [#] Senin, P. (2008). Dynamic time warping algorithm review. Information
@@ -77,12 +88,17 @@ def dtw(P, Q):
     >>> dtw(P, Q)
     20.0...
     """
-    dist = cdist(P, Q)
+    if dist == "euclidean":
+        dist = cdist(P, Q)
+    elif dist == "squared_euclidean":
+        dist = cdist(P, Q) ** 2
+    else:
+        raise ValueError(f"Unknown type of distance: {dist}")
     return float(_dtw_acm(dist)[-1, -1])
 
 
 @sanitize_vertices(owp=True)
-def dtw_owp(P, Q):
+def dtw_owp(P, Q, dist="euclidean"):
     """Dynamic time warping distance and its optimal warping path.
 
     Parameters
@@ -93,10 +109,12 @@ def dtw_owp(P, Q):
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
+    dist : {'euclidean', 'squared_euclidean'}
+        Type of :math:`dist`. Refer to :func:`dtw`.
 
     Returns
     -------
-    dist : double
+    dtw : double
         The dynamic time warping distance between *P* and *Q*, NaN if any vertice
         is empty.
     owp : ndarray
@@ -118,98 +136,13 @@ def dtw_owp(P, Q):
     >>> import matplotlib.pyplot as plt #doctest: +SKIP
     >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
-    dist = cdist(P, Q)
+    if dist == "euclidean":
+        dist = cdist(P, Q)
+    elif dist == "squared_euclidean":
+        dist = cdist(P, Q) ** 2
+    else:
+        raise ValueError(f"Unknown type of distance: {dist}")
     acm = _dtw_acm(dist)
-    return float(acm[-1, -1]), _dtw_owp(acm)
-
-
-@sanitize_vertices(owp=False)
-def sdtw(P, Q):
-    r"""Squared dynamic time warping distance.
-
-    The squared dynamic time warping distance is defined as
-
-    .. math::
-
-        \min_{C} \sum_{(i, j) \in C} \lVert P_i - Q_j \rVert^2,
-
-    with symbols explained in :func:`dtw`.
-
-    Parameters
-    ----------
-    P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
-        :math:`n`-dimensional space.
-    Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
-        :math:`n`-dimensional space.
-
-    Returns
-    -------
-    dist : double
-        The squared dynamic time warping distance between *P* and *Q*, NaN if any
-        vertice is empty.
-
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
-    See Also
-    --------
-    dtw : Dynamic time warping distance.
-    sdtw_owp : Squared dynamic time warping distance with optimal warping path.
-
-    Examples
-    --------
-    >>> P = np.linspace([0, 0], [1, 0], 10)
-    >>> Q = np.linspace([0, 1], [1, 1], 20)
-    >>> sdtw(P, Q)
-    20.0...
-    """
-    dist = cdist(P, Q)
-    return float(_dtw_acm(dist**2)[-1, -1])
-
-
-@sanitize_vertices(owp=True)
-def sdtw_owp(P, Q):
-    """Squared dynamic time warping distance and its optimal warping path.
-
-    Parameters
-    ----------
-    P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
-        :math:`n`-dimensional space.
-    Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
-        :math:`n`-dimensional space.
-
-    Returns
-    -------
-    dist : double
-        The squared dynamic time warping distance between *P* and *Q*, NaN if any
-        vertice is empty.
-    owp : ndarray
-        Indices of *P* and *Q* for optimal warping path, empty if any vertice is
-        empty.
-
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
-    Examples
-    --------
-    >>> P = np.linspace([0, 0], [1, 0], 10)
-    >>> Q = np.linspace([0, 1], [1, 1], 20)
-    >>> dist, path = sdtw_owp(P, Q)
-    >>> (dist / len(path))**0.5  # quadratic mean dynamic time warping
-    1.00...
-    >>> import matplotlib.pyplot as plt #doctest: +SKIP
-    >>> plt.plot(*path.T, "x")  #doctest: +SKIP
-    """
-    dist = cdist(P, Q)
-    acm = _dtw_acm(dist**2)
     return float(acm[-1, -1]), _dtw_owp(acm)
 
 
