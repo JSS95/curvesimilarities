@@ -6,6 +6,9 @@
 CurveSimilarities documentation
 *******************************
 
+.. plot:: plot-header.py
+    :include-source: False
+
 A collection of curve similarity measures.
 
 There are tons of similar packages published on PyPI, but this one aims
