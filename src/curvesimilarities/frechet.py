@@ -9,6 +9,7 @@ from .util import sanitize_vertices
 __all__ = [
     "fd",
     "dfd",
+    "dfd_idxs",
 ]
 
 
@@ -299,3 +300,7 @@ def _dfd(dist):
             )
 
     return ret
+
+
+def dfd_idxs(P, Q):
+    """Discrete Fréchet distance and its indices in curve space."""
