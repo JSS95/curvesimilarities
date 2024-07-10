@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 
-from curvesimilarities.frechet import _decision_problem, dfd, fd
+from curvesimilarities.frechet import _decision_problem, dfd, dfd_idxs, fd
 
 
 def test_fd_dtype():
@@ -26,3 +26,10 @@ def test_decision_problem():
 
 def test_dfd_dtype():
     assert type(dfd([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float
+
+
+def test_dfd_idxs(P_pts, Q_pts):
+    dist = cdist(P_pts, Q_pts)
+    d, i, j = dfd_idxs(P_pts, Q_pts)
+    assert d == dist[i, j]
+    assert d == dfd(P_pts, Q_pts)

@@ -275,11 +275,39 @@ def dfd(P, Q):
     4.0
     """
     dist = cdist(P, Q)
-    return float(_dfd(dist)[-1, -1])
+    return float(_dfd_ca(dist)[-1, -1])
+
+
+def dfd_idxs(P, Q):
+    """Discrete Fréchet distance and its indices in curve space.
+
+    Parameters
+    ----------
+    P : array_like
+        An :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        An :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+
+    Returns
+    -------
+    d : double
+        The discrete Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
+    index_1 : int
+        Index of point contributing to discrete Fréchet distance in *P*.
+    index_2 : int
+        Index of point contributing to discrete Fréchet distance in *Q*.
+    """
+    dist = cdist(P, Q)
+    ca = _dfd_ca(dist)
+    index_1, index_2 = _dfd_idxs(ca)
+    return float(ca[-1, -1]), int(index_1), int(index_2)
 
 
 @njit(cache=True)
-def _dfd(dist):
+def _dfd_ca(dist):
     # Eiter, T., & Mannila, H. (1994)
     p, q = dist.shape
     ret = np.empty((p, q), dtype=np.float64)
@@ -302,5 +330,24 @@ def _dfd(dist):
     return ret
 
 
-def dfd_idxs(P, Q):
-    """Discrete Fréchet distance and its indices in curve space."""
+@njit(cache=True)
+def _dfd_idxs(ca):
+    p, q = ca.shape
+    i, j = p - 1, q - 1
+
+    while i > 0 or j > 0:
+        current = ca[i, j]
+        LEFT = np.inf if i == 0 else ca[i - 1, j]
+        DOWN = np.inf if j == 0 else ca[i, j - 1]
+        DIAG = np.inf if (i == 0 or j == 0) else ca[i - 1, j - 1]
+        prev = min(LEFT, DOWN, DIAG)
+        if current > prev:
+            break
+        elif current == LEFT:
+            i -= 1
+        elif current == DOWN:
+            j -= 1
+        else:
+            i -= 1
+            j -= 1
+    return (i, j)
