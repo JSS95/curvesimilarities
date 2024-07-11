@@ -46,6 +46,8 @@ def fd(P, Q, *, rel_tol=0.0, abs_tol=float(EPSILON)):
         Relative and absolute tolerances for parametric search of the Fréchet distance.
         The search is terminated if the upper boundary ``a`` and the lower boundary
         ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
+        If both values are zero, parametric search is disabled and analytic solution is
+        returned.
 
     Returns
     -------
@@ -161,9 +163,9 @@ def _decision_problem(P, Q, eps):
 
 
 @njit(cache=True)
-def _critical_b(A, B, C):
+def _critical_b(A, B, P):
     v = B - A
-    w = C - A
+    w = P - A
     vv = np.dot(v, v)
     if vv == 0:
         return np.linalg.norm(w)
@@ -171,57 +173,112 @@ def _critical_b(A, B, C):
     if t < 0:
         dist = np.linalg.norm(w)
     elif t > 1:
-        dist = np.linalg.norm(C - B)
+        dist = np.linalg.norm(P - B)
     else:
         dist = np.linalg.norm(t * v - w)
     return dist
 
 
 @njit(cache=True)
+def _critical_c(A, B, P1, P2):
+    M = (P1 + P2) / 2
+    AB = B - A
+    MA = A - M
+    PP = P2 - P1
+
+    a = np.dot(AB, PP)
+    b = np.dot(MA, PP)
+    if a == 0:
+        ret = NAN
+    else:
+        t = -b / a
+        if t < 0 or t > 1:
+            ret = NAN
+        else:
+            MT = AB * t + MA
+            ret = np.linalg.norm(MT)
+    return ret
+
+
+@njit(cache=True)
 def _fd(P, Q, rel_tol, abs_tol):
     """Algorithm 3 of Alt & Godau (1995)."""
-    crit_a = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
+    LP, LQ = len(P), len(Q)
+    ANALYTIC = rel_tol == 0 and abs_tol == 0
 
-    crit_b = np.empty(2 * len(P) * len(Q) - len(P) - len(Q) + 1, dtype=np.float64)
+    MAX_A = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
+    crit_a = np.array((MAX_A,))
+
+    crit_b = np.empty(LP * (LQ - 1) + (LP - 1) * LQ, dtype=np.float64)
     count = 0
-    for i in range(len(P) - 1):
-        for j in range(len(Q)):
+    for i in range(LP - 1):
+        for j in range(LQ):
             dist = _critical_b(P[i], P[i + 1], Q[j])
-            if dist > crit_a:
+            if dist > MAX_A:
                 crit_b[count] = dist
                 count += 1
-    for i in range(len(P)):
-        for j in range(len(Q) - 1):
+    for i in range(LP):
+        for j in range(LQ - 1):
             dist = _critical_b(Q[j], Q[j + 1], P[i])
-            if dist > crit_a:
+            if dist > MAX_A:
                 crit_b[count] = dist
                 count += 1
-    crit_b[count] = crit_a
-    crit_b = np.sort(crit_b[: count + 1])
+    crit_b = crit_b[:count]
+
+    if ANALYTIC:
+        crit_c = np.empty(
+            int(LP * (LP - 1) * (LQ - 1) / 2 + LQ * (LQ - 1) * (LP - 1) / 2),
+            dtype=np.float64,
+        )
+        count = 0
+        for i in range(LP):
+            for j in range(i + 1, LP):
+                for k in range(LQ - 1):
+                    dist = _critical_c(Q[k], Q[k + 1], P[i], P[j])
+                    if dist > MAX_A:
+                        crit_c[count] = dist
+                        count += 1
+        for i in range(LQ):
+            for j in range(i + 1, LQ):
+                for k in range(LP - 1):
+                    dist = _critical_c(P[k], P[k + 1], Q[i], Q[j])
+                    if dist > MAX_A:
+                        crit_c[count] = dist
+                        count += 1
+        crit_c = crit_c[:count]
+
+        crit = np.sort(np.concatenate((crit_a, crit_b, crit_c)))
+    else:
+        crit = np.sort(np.concatenate((crit_a, crit_b)))
 
     # binary search
-    start, end = 0, count
+    start, end = 0, len(crit) - 1
+    if _decision_problem(P, Q, crit[start]):
+        end = start
     while end - start > 1:
         mid = (start + end) // 2
-        mid_reachable = _decision_problem(P, Q, crit_b[mid])
+        mid_reachable = _decision_problem(P, Q, crit[mid])
         if mid_reachable:
             end = mid
         else:
             start = mid
 
-    # parametric search
-    e1, e2 = crit_b[start], crit_b[end]
-    while e2 - e1 > max(rel_tol * e2, abs_tol):
-        mid = (e1 + e2) / 2
-        if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
-            break
-        mid_reachable = _decision_problem(P, Q, mid)
-        if mid_reachable:
-            e2 = mid
-        else:
-            e1 = mid
-
-    return e2
+    if ANALYTIC:
+        ret = crit[end]
+    else:
+        # parametric search
+        e1, e2 = crit[start], crit[end]
+        while e2 - e1 > max(rel_tol * e2, abs_tol):
+            mid = (e1 + e2) / 2
+            if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
+                break
+            mid_reachable = _decision_problem(P, Q, mid)
+            if mid_reachable:
+                e2 = mid
+            else:
+                e1 = mid
+        ret = e2
+    return ret
 
 
 @sanitize_vertices(owp=False)
