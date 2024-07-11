@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Discrete Fréchet distance with indices `dfd_idxs()`.
 
+### Changed
+
+**Fréchet distance (`curvesimilarities.frechet`)**
+
+- If tolerances are set to zero, the Fréchet distance `fd()` returns analytic solution.
+
 ## [0.3.0a1] - 2024-06-26
 
 ### Changed
