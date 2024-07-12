@@ -7,9 +7,8 @@ dedicated packages such as `dtw-python
 
 import numpy as np
 from numba import njit
-from scipy.spatial.distance import cdist
 
-from .util import sanitize_vertices
+from ._algorithms.dtw import _dtw_acm, _dtw_owp
 
 __all__ = [
     "dtw",
@@ -17,7 +16,10 @@ __all__ = [
 ]
 
 
-@sanitize_vertices(owp=False)
+NAN = np.float64(np.nan)
+
+
+@njit(cache=True)
 def dtw(P, Q, dist="euclidean"):
     r"""Dynamic time warping distance between two ordered sets of points.
 
@@ -35,10 +37,10 @@ def dtw(P, Q, dist="euclidean"):
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
     dist : {'euclidean', 'squared_euclidean'}
@@ -88,25 +90,24 @@ def dtw(P, Q, dist="euclidean"):
     >>> dtw(P, Q)
     20.0...
     """
-    if dist == "euclidean":
-        dist = cdist(P, Q)
-    elif dist == "squared_euclidean":
-        dist = cdist(P, Q) ** 2
+    acm = _dtw_acm(P, Q, dist)
+    if acm.size == 0:
+        ret = NAN
     else:
-        raise ValueError(f"Unknown type of distance: {dist}")
-    return float(_dtw_acm(dist)[-1, -1])
+        ret = acm[-1, -1]
+    return ret
 
 
-@sanitize_vertices(owp=True)
+@njit(cache=True)
 def dtw_owp(P, Q, dist="euclidean"):
     """Dynamic time warping distance and its optimal warping path.
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
     dist : {'euclidean', 'squared_euclidean'}
@@ -136,58 +137,9 @@ def dtw_owp(P, Q, dist="euclidean"):
     >>> import matplotlib.pyplot as plt #doctest: +SKIP
     >>> plt.plot(*path.T, "x")  #doctest: +SKIP
     """
-    if dist == "euclidean":
-        dist = cdist(P, Q)
-    elif dist == "squared_euclidean":
-        dist = cdist(P, Q) ** 2
+    acm = _dtw_acm(P, Q, dist)
+    if acm.size == 0:
+        ret = NAN, np.empty((0, 2), dtype=np.int_)
     else:
-        raise ValueError(f"Unknown type of distance: {dist}")
-    acm = _dtw_acm(dist)
-    return float(acm[-1, -1]), _dtw_owp(acm)
-
-
-@njit(cache=True)
-def _dtw_acm(cm):
-    """Accumulated cost matrix for dynamic time warping."""
-    p, q = cm.shape
-    ret = np.empty((p, q), dtype=np.float64)
-
-    ret[0, 0] = cm[0, 0]
-    for i in range(1, p):
-        ret[i, 0] = ret[i - 1, 0] + cm[i, 0]
-    for j in range(1, q):
-        ret[0, j] = ret[0, j - 1] + cm[0, j]
-    for i in range(1, p):
-        for j in range(1, q):
-            ret[i, j] = min(ret[i - 1, j], ret[i, j - 1], ret[i - 1, j - 1]) + cm[i, j]
+        ret = acm[-1, -1], _dtw_owp(acm)
     return ret
-
-
-@njit(cache=True)
-def _dtw_owp(acm):
-    p, q = acm.shape
-    path = np.empty((p + q - 1, 2), dtype=np.int_)
-    path_len = np.int_(0)
-
-    i, j = p - 1, q - 1
-    path[path_len] = [i, j]
-    path_len += np.int_(1)
-
-    while i > 0 or j > 0:
-        if i == 0:
-            j -= 1
-        elif j == 0:
-            i -= 1
-        else:
-            d = min(acm[i - 1, j], acm[i, j - 1], acm[i - 1, j - 1])
-            if acm[i - 1, j] == d:
-                i -= 1
-            elif acm[i, j - 1] == d:
-                j -= 1
-            else:
-                i -= 1
-                j -= 1
-
-        path[path_len] = [i, j]
-        path_len += np.int_(1)
-    return path[-(len(path) - path_len + 1) :: -1, :]
