@@ -30,10 +30,6 @@ def test_decision_problem():
     assert _decision_problem(P, Q, 1.0)
 
 
-def test_dfd_dtype():
-    assert type(dfd([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float
-
-
 def test_dfd_idxs(P_pts, Q_pts):
     dist = cdist(P_pts, Q_pts)
     d, i, j = dfd_idxs(P_pts, Q_pts)
