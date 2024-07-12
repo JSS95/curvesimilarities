@@ -43,6 +43,12 @@ def test_dfd_degenerate():
     check([[0, 0]], [[0, 1], [1, 1]])
 
 
+def test_dfd_duplicate(P_pts, Q_pts):
+    P_dup = np.repeat(P_pts, 2, axis=0)
+    Q_dup = np.repeat(Q_pts, 2, axis=0)
+    assert dfd(P_dup, Q_dup) == dfd(P_pts, Q_pts)
+
+
 def test_dfd_idxs(P_pts, Q_pts):
     dist = cdist(P_pts, Q_pts)
     d, i, j = dfd_idxs(P_pts, Q_pts)
