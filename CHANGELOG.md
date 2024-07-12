@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `dfd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
 - `dtw()` and `dtw_owp()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
+- `fd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
 
 ### Changed
 

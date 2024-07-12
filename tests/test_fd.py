@@ -1,33 +1,23 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 
-from curvesimilarities.frechet import _decision_problem, dfd, dfd_idxs, fd
+from curvesimilarities.frechet import dfd, dfd_idxs, fd
 
 
 def test_fd_analytic():
     P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]
-    dist = fd(P, Q, rel_tol=0, abs_tol=0)
+    dist = fd(np.asarray(P), np.asarray(Q), rel_tol=0, abs_tol=0)
     assert dist == 1.0
-
-
-def test_fd_dtype():
-    assert type(fd([[0, 0], [1, 0]], [[0, 1], [1, 1]])) is float
 
 
 def test_fd_degenerate():
 
     def check(P, Q):
-        assert fd(P, Q) == np.max(cdist(P, Q))
+        assert fd(np.asarray(P), np.asarray(Q)) == np.max(cdist(P, Q))
 
     check([[0, 0]], [[0, 1]])
     check([[0, 0], [1, 0]], [[0, 1]])
     check([[0, 0]], [[0, 1], [1, 1]])
-
-
-def test_decision_problem():
-    P = np.array([[0, 0], [0.5, 0], [1, 0]], dtype=np.float64)
-    Q = np.array([[0, 1], [1, 1]], dtype=np.float64)
-    assert _decision_problem(P, Q, 1.0)
 
 
 def test_dfd_degenerate():

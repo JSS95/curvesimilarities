@@ -86,11 +86,11 @@ def parameter_space(P, Q, p_num, q_num):
     .. plot::
         :context: close-figs
 
-        >>> P = [[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]]
-        >>> Q = [[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]]
+        >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
+        >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
         >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-        >>> plt.plot(*np.array(P).T)  # doctest: +SKIP
-        >>> plt.plot(*np.array(Q).T)  # doctest: +SKIP
+        >>> plt.plot(*P.T)  # doctest: +SKIP
+        >>> plt.plot(*Q.T)  # doctest: +SKIP
 
     Parameter space with vertices as dashed lines:
 

@@ -18,8 +18,9 @@ List of supported measures:
 ## Usage
 
 ```python
+>>> import numpy as np
 >>> from curvesimilarities import fd  # (Continuous) Fréchet distance
->>> fd([[0, 0], [1, 3], [2, 0]], [[0, 1], [2, 1]])
+>>> fd(np.array([[0, 0], [1, 3], [2, 0]]), np.array([[0, 1], [2, 1]]))
 2.0
 ```
 
