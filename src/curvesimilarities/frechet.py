@@ -336,7 +336,7 @@ def dfd(P, Q):
     if ca.size == 0:
         ret = NAN
     else:
-        ret = _dfd_ca(P, Q)[-1, -1]
+        ret = ca[-1, -1]
     return ret
 
 
