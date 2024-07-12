@@ -8,7 +8,7 @@ dedicated packages such as `dtw-python
 import numpy as np
 from numba import njit
 
-from ._algorithms.dtw import _dtw_acm, _dtw_owp
+from ._algorithms.dtw import _dtw_acm, _dtw_acm_1d, _dtw_owp
 
 __all__ = [
     "dtw",
@@ -90,11 +90,11 @@ def dtw(P, Q, dist="euclidean"):
     >>> dtw(P, Q)
     20.0...
     """
-    acm = _dtw_acm(P, Q, dist)
+    acm = _dtw_acm_1d(P, Q, dist)
     if acm.size == 0:
         ret = NAN
     else:
-        ret = acm[-1, -1]
+        ret = acm[-1]
     return ret
 
 

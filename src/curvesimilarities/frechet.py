@@ -3,7 +3,7 @@
 import numpy as np
 from numba import njit
 
-from ._algorithms.dfd import _dfd_ca, _dfd_idxs
+from ._algorithms.dfd import _dfd_ca, _dfd_ca_1d, _dfd_idxs
 from .util import sanitize_vertices
 
 __all__ = [
@@ -332,11 +332,11 @@ def dfd(P, Q):
     >>> dfd(np.asarray(P), np.asarray(Q))
     4.0
     """
-    ca = _dfd_ca(P, Q)
+    ca = _dfd_ca_1d(P, Q)
     if ca.size == 0:
         ret = NAN
     else:
-        ret = ca[-1, -1]
+        ret = ca[-1]
     return ret
 
 
