@@ -12,12 +12,20 @@ def test_fd_analytic():
 
 def test_fd_degenerate():
 
+    assert np.isnan(fd(np.empty((0, 2)), np.empty((0, 2))))
+
     def check(P, Q):
         assert fd(np.asarray(P), np.asarray(Q)) == np.max(cdist(P, Q))
 
     check([[0, 0]], [[0, 1]])
     check([[0, 0], [1, 0]], [[0, 1]])
     check([[0, 0]], [[0, 1], [1, 1]])
+
+
+def test_fd_duplicate(P_vert, Q_vert):
+    P_dup = np.repeat(P_vert, 2, axis=0)
+    Q_dup = np.repeat(Q_vert, 2, axis=0)
+    assert fd(P_dup, Q_dup) == fd(P_vert, Q_vert)
 
 
 def test_dfd_degenerate():

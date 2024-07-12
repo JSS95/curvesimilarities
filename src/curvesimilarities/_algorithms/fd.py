@@ -100,13 +100,16 @@ def _fd(P, Q, rel_tol, abs_tol):
 
 @njit(cache=True)
 def _reachable_boundaries(P, Q, eps):
-    B = np.empty((len(P) - 1, len(Q), 2), dtype=np.float64)
-    start, end = _free_interval(P[0], P[1], Q[0], eps)
-    if start == 0:
-        B[0, 0] = [start, end]
-    else:
-        B[0, 0] = [NAN, NAN]
-    for i in range(1, len(P) - 1):
+    p, q = len(P), len(Q)
+
+    B = np.empty((p - 1, q, 2), dtype=np.float64)
+    if p > 1:
+        start, end = _free_interval(P[0], P[1], Q[0], eps)
+        if start == 0:
+            B[0, 0] = [start, end]
+        else:
+            B[0, 0] = [NAN, NAN]
+    for i in range(1, p - 1):
         _, prev_end = B[i - 1, 0]
         if prev_end == 1:
             start, end = _free_interval(P[i], P[i + 1], Q[0], eps)
@@ -115,13 +118,14 @@ def _reachable_boundaries(P, Q, eps):
                 continue
         B[i, 0] = [NAN, NAN]
 
-    L = np.empty((len(P), len(Q) - 1, 2), dtype=np.float64)
-    start, end = _free_interval(Q[0], Q[1], P[0], eps)
-    if start == 0:
-        L[0, 0] = [start, end]
-    else:
-        L[0, 0] = [NAN, NAN]
-    for j in range(1, len(Q) - 1):
+    L = np.empty((p, q - 1, 2), dtype=np.float64)
+    if q > 1:
+        start, end = _free_interval(Q[0], Q[1], P[0], eps)
+        if start == 0:
+            L[0, 0] = [start, end]
+        else:
+            L[0, 0] = [NAN, NAN]
+    for j in range(1, q - 1):
         _, prev_end = L[0, j - 1]
         if prev_end == 1:
             start, end = _free_interval(Q[j], Q[j + 1], P[0], eps)
@@ -130,26 +134,26 @@ def _reachable_boundaries(P, Q, eps):
                 continue
         L[0, j] = [NAN, NAN]
 
-    for i in range(len(P) - 1):
-        for j in range(len(Q) - 1):
-            prevL_start, _ = L[i, j]
-            prevB_start, _ = B[i, j]
-            L_start, L_end = _free_interval(Q[j], Q[j + 1], P[i + 1], eps)
-            B_start, B_end = _free_interval(P[i], P[i + 1], Q[j + 1], eps)
+    for i in range(1, p):
+        for j in range(1, q):
+            prevL_start, _ = L[i - 1, j - 1]
+            prevB_start, _ = B[i - 1, j - 1]
+            L_start, L_end = _free_interval(Q[j - 1], Q[j], P[i], eps)
+            B_start, B_end = _free_interval(P[i - 1], P[i], Q[j], eps)
 
             if not np.isnan(prevB_start):
-                L[i + 1, j] = [L_start, L_end]
+                L[i, j - 1] = [L_start, L_end]
             elif prevL_start <= L_end:
-                L[i + 1, j] = [max(prevL_start, L_start), L_end]
+                L[i, j - 1] = [max(prevL_start, L_start), L_end]
             else:
-                L[i + 1, j] = [NAN, NAN]
+                L[i, j - 1] = [NAN, NAN]
 
             if not np.isnan(prevL_start):
-                B[i, j + 1] = [B_start, B_end]
+                B[i - 1, j] = [B_start, B_end]
             elif prevB_start <= B_end:
-                B[i, j + 1] = [max(prevB_start, B_start), B_end]
+                B[i - 1, j] = [max(prevB_start, B_start), B_end]
             else:
-                B[i, j + 1] = [NAN, NAN]
+                B[i - 1, j] = [NAN, NAN]
 
     return B, L
 

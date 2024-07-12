@@ -8,6 +8,16 @@ Q_VERT = [[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]]
 
 
 @pytest.fixture
+def P_vert():
+    return np.array(P_VERT)
+
+
+@pytest.fixture
+def Q_vert():
+    return np.array(Q_VERT)
+
+
+@pytest.fixture
 def P_pts():
     param = np.linspace(0, np.sum(np.linalg.norm(np.diff(P_VERT, axis=0), axis=-1)), 10)
     return sample_polyline(P_VERT, param)
