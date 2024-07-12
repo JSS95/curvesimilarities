@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `dfd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
+
+### Changed
+
 **Fréchet distance (`curvesimilarities.frechet`)**
 
 - If tolerances are set to zero, the Fréchet distance `fd()` returns analytic solution.
