@@ -22,6 +22,42 @@ def _fd(P, Q, rel_tol, abs_tol):
     if not (p > 0 and q > 0):
         return NAN
 
+    crit = _critical_values(P, Q, ANALYTIC)
+
+    # binary search
+    start, end = 0, len(crit) - 1
+    B, L = _reachable_boundaries_1d(P, Q, crit[start])
+    if B[-1, 1] == 1 or L[-1, 1] == 1:
+        end = start
+    while end - start > 1:
+        mid = (start + end) // 2
+        B, L = _reachable_boundaries_1d(P, Q, crit[mid])
+        if B[-1, 1] == 1 or L[-1, 1] == 1:
+            end = mid
+        else:
+            start = mid
+
+    if ANALYTIC:
+        ret = crit[end]
+    else:
+        # parametric search
+        e1, e2 = crit[start], crit[end]
+        while e2 - e1 > max(rel_tol * e2, abs_tol):
+            mid = (e1 + e2) / 2
+            if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
+                break
+            B, L = _reachable_boundaries_1d(P, Q, mid)
+            if B[-1, 1] == 1 or L[-1, 1] == 1:
+                e2 = mid
+            else:
+                e1 = mid
+        ret = e2
+    return ret
+
+
+@njit(cache=True)
+def _critical_values(P, Q, ANALYTIC):
+    p, q = len(P), len(Q)
     MAX_A = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
     crit_a = np.array((MAX_A,))
 
@@ -66,35 +102,44 @@ def _fd(P, Q, rel_tol, abs_tol):
         crit = np.sort(np.concatenate((crit_a, crit_b, crit_c)))
     else:
         crit = np.sort(np.concatenate((crit_a, crit_b)))
+    return crit
 
-    # binary search
-    start, end = 0, len(crit) - 1
-    B, L = _reachable_boundaries(P, Q, crit[start])
-    if B[-1, -1, 1] == 1 or L[-1, -1, 1] == 1:
-        end = start
-    while end - start > 1:
-        mid = (start + end) // 2
-        B, L = _reachable_boundaries(P, Q, crit[mid])
-        if B[-1, -1, 1] == 1 or L[-1, -1, 1] == 1:
-            end = mid
-        else:
-            start = mid
 
-    if ANALYTIC:
-        ret = crit[end]
+@njit(cache=True)
+def _critical_b(A, B, P):
+    v = B - A
+    w = P - A
+    vv = np.dot(v, v)
+    if vv == 0:
+        return np.linalg.norm(w)
+    t = np.dot(v, w) / vv
+    if t < 0:
+        dist = np.linalg.norm(w)
+    elif t > 1:
+        dist = np.linalg.norm(P - B)
     else:
-        # parametric search
-        e1, e2 = crit[start], crit[end]
-        while e2 - e1 > max(rel_tol * e2, abs_tol):
-            mid = (e1 + e2) / 2
-            if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
-                break
-            B, L = _reachable_boundaries(P, Q, mid)
-            if B[-1, -1, 1] == 1 or L[-1, -1, 1] == 1:
-                e2 = mid
-            else:
-                e1 = mid
-        ret = e2
+        dist = np.linalg.norm(t * v - w)
+    return dist
+
+
+@njit(cache=True)
+def _critical_c(A, B, P1, P2):
+    M = (P1 + P2) / 2
+    AB = B - A
+    MA = A - M
+    PP = P2 - P1
+
+    a = np.dot(AB, PP)
+    b = np.dot(MA, PP)
+    if a == 0:
+        ret = NAN
+    else:
+        t = -b / a
+        if t < 0 or t > 1:
+            ret = NAN
+        else:
+            MT = AB * t + MA
+            ret = np.linalg.norm(MT)
     return ret
 
 
@@ -159,6 +204,62 @@ def _reachable_boundaries(P, Q, eps):
 
 
 @njit(cache=True)
+def _reachable_boundaries_1d(P, Q, eps):
+    # Equivalent to _reachable_boundaries, but keep 1d array instead of 2d.
+    # Memory efficient, but cannot do backtracking.
+    p, q = len(P), len(Q)
+    B = np.empty((1, 2), dtype=np.float64)
+    L = np.empty((q - 1, 2), dtype=np.float64)
+
+    # Construct leftmost Ls
+    prevL0_end = 1
+    for j in range(q - 1):
+        if prevL0_end == 1:
+            start, end = _free_interval(Q[j], Q[j + 1], P[0], eps)
+            if start == 0:
+                L[j] = [start, end]
+            else:
+                L[j] = [NAN, NAN]
+        else:
+            L[j] = [NAN, NAN]
+        _, prevL0_end = L[j]
+
+    prevB0_end = 1
+    for i in range(p - 1):
+        # construct lowermost B
+        if prevB0_end == 1:
+            start, end = _free_interval(P[i], P[i + 1], Q[0], eps)
+            if start == 0:
+                B[0] = [start, end]
+            else:
+                B[0] = [NAN, NAN]
+        else:
+            B[0] = [NAN, NAN]
+        _, prevB0_end = B[0]
+        for j in range(q - 1):
+            prevL_start, _ = L[j]
+            prevB_start, _ = B[0]
+            L_start, L_end = _free_interval(Q[j], Q[j + 1], P[i + 1], eps)
+            B_start, B_end = _free_interval(P[i], P[i + 1], Q[j + 1], eps)
+
+            if not np.isnan(prevB_start):
+                L[j] = [L_start, L_end]
+            elif prevL_start <= L_end:
+                L[j] = [max(prevL_start, L_start), L_end]
+            else:
+                L[j] = [NAN, NAN]
+
+            if not np.isnan(prevL_start):
+                B[0] = [B_start, B_end]
+            elif prevB_start <= B_end:
+                B[0] = [max(prevB_start, B_start), B_end]
+            else:
+                B[0] = [NAN, NAN]
+
+    return B, L
+
+
+@njit(cache=True)
 def _free_interval(A, B, P, eps):
     # resulting interval is always in [0, 1] or is [nan, nan].
     coeff1 = B - A
@@ -182,41 +283,3 @@ def _free_interval(A, B, P, eps):
             start = end = NAN
         interval = [start, end]
     return interval
-
-
-@njit(cache=True)
-def _critical_b(A, B, P):
-    v = B - A
-    w = P - A
-    vv = np.dot(v, v)
-    if vv == 0:
-        return np.linalg.norm(w)
-    t = np.dot(v, w) / vv
-    if t < 0:
-        dist = np.linalg.norm(w)
-    elif t > 1:
-        dist = np.linalg.norm(P - B)
-    else:
-        dist = np.linalg.norm(t * v - w)
-    return dist
-
-
-@njit(cache=True)
-def _critical_c(A, B, P1, P2):
-    M = (P1 + P2) / 2
-    AB = B - A
-    MA = A - M
-    PP = P2 - P1
-
-    a = np.dot(AB, PP)
-    b = np.dot(MA, PP)
-    if a == 0:
-        ret = NAN
-    else:
-        t = -b / a
-        if t < 0 or t > 1:
-            ret = NAN
-        else:
-            MT = AB * t + MA
-            ret = np.linalg.norm(MT)
-    return ret
