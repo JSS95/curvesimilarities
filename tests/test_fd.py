@@ -1,19 +1,7 @@
 import numpy as np
-import pytest
 from scipy.spatial.distance import cdist
 
 from curvesimilarities.frechet import dfd, dfd_idxs, fd
-
-
-def test_fd_analytic_1():
-    P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]
-    dist = fd(np.asarray(P), np.asarray(Q), rel_tol=0, abs_tol=0)
-    assert dist == 1.0
-
-
-@pytest.mark.xfail
-def test_fd_analytic_2(P_vert, Q_vert):
-    assert fd(P_vert, Q_vert, rel_tol=0, abs_tol=0) <= fd(P_vert, Q_vert)
 
 
 def test_fd_degenerate():

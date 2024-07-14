@@ -17,7 +17,10 @@ def _fd(P, Q, rel_tol, abs_tol):
 
     P, Q = P.astype(np.float64), Q.astype(np.float64)
     p, q = len(P), len(Q)
-    ANALYTIC = rel_tol == 0 and abs_tol == 0
+    # It is impossible to get analytic result because of floating point error,
+    # which makes reachability fail with analytic solution...
+    # ANALYTIC = rel_tol == 0 and abs_tol == 0
+    ANALYTIC = False
 
     if not (p > 0 and q > 0):
         return NAN
@@ -132,14 +135,18 @@ def _critical_c(A, B, P1, P2):
     a = np.dot(AB, PP)
     b = np.dot(MA, PP)
     if a == 0:
-        ret = NAN
+        if np.abs(np.dot(AB, MA)) == np.linalg.norm(AB) * np.linalg.norm(MA):
+            # M is on AB
+            ret = np.float64(0)
+        else:
+            ret = NAN
     else:
         t = -b / a
         if t < 0 or t > 1:
             ret = NAN
         else:
-            MT = AB * t + MA
-            ret = np.linalg.norm(MT)
+            P1T = A + AB * t - P1
+            ret = np.linalg.norm(P1T)
     return ret
 
 

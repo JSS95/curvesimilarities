@@ -46,8 +46,6 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
         Relative and absolute tolerances for parametric search of the Fréchet distance.
         The search is terminated if the upper boundary ``a`` and the lower boundary
         ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
-        If both values are zero, parametric search is disabled and analytic solution is
-        returned.
 
     Returns
     -------
