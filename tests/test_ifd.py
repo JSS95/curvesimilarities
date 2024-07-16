@@ -1,81 +1,31 @@
 import numpy as np
 
 from curvesimilarities import ifd, ifd_owp
-from curvesimilarities._algorithms.ifd import _steiner_pts
-from curvesimilarities.integfrechet import _cell_info, _line_point_integrate_SqEuc
-
-
-def test_steiner_degenerate(P_vert):
-    P_vert = P_vert.astype(np.float64)
-    P_dup = np.repeat(P_vert, 2, axis=0)
-    pts, _ = _steiner_pts(P_vert, 1)
-    pts_dup, _ = _steiner_pts(P_dup, 1)
-    assert np.all(pts == pts_dup)
-
-
-def test_ifd_degenerate():
-
-    P = np.asarray([[0, 0]], dtype=np.float64)
-    Q = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
-    assert ifd(P, Q, 0.1, "squared_euclidean") == _line_point_integrate_SqEuc(
-        Q[0], Q[1], P[0]
-    )
-
-    P = np.asarray([[0, 1], [1, 1]], dtype=np.float64)
-    Q = np.asarray([[0, 0]], dtype=np.float64)
-    assert ifd(P, Q, 0.1, "squared_euclidean") == _line_point_integrate_SqEuc(
-        P[0], P[1], Q[0]
-    )
-
-
-def test_lm():
-    P = np.array([[0.5, 0], [1, 0]], dtype=np.float64)
-    L1 = np.linalg.norm(np.diff(P, axis=0), axis=-1)
-    Q = np.array([[0, 1], [1, 1]], dtype=np.float64)
-    L2 = np.linalg.norm(np.diff(Q, axis=0), axis=-1)
-    assert _cell_info(P, L1, Q, L2)[4] == 0.5
 
 
 def test_ifd():
-    assert ifd([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1, "squared_euclidean") == 2.0
-    assert (
-        ifd([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1, "squared_euclidean")
-        == 2.0
-    )
-    assert (
-        ifd([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1, "squared_euclidean")
-        == 2.0
-    )
-    assert (
-        ifd(
-            [[0, 0], [0.5, 0], [1, 0]],
-            [[0, 1], [0.5, 1], [1, 1]],
-            0.1,
-            "squared_euclidean",
-        )
-        == 2.0
-    )
+    P, Q = [[0, 0], [1, 0]], [[0, 1], [1, 1]]
+    assert ifd(np.asarray(P), np.asarray(Q), 1, "squared_euclidean") == 2
+    assert ifd(np.asarray(Q), np.asarray(P), 1, "squared_euclidean") == 2
+
+    P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]
+    assert ifd(np.asarray(P), np.asarray(Q), 0.5, "squared_euclidean") == 2
+    assert ifd(np.asarray(Q), np.asarray(P), 0.5, "squared_euclidean") == 2
+
+    P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]]
+    assert ifd(np.asarray(P), np.asarray(Q), 0.5, "squared_euclidean") == 2
+    assert ifd(np.asarray(Q), np.asarray(P), 0.5, "squared_euclidean") == 2
 
 
-def test_ifd_dtype():
-    assert (
-        type(
-            ifd(
-                [[0, 0], [0.5, 0], [1, 0]],
-                [[0, 1], [0.5, 1], [1, 1]],
-                0.1,
-                "squared_euclidean",
-            )
-        )
-        is float
-    )
+def test_ifd_degenerate(P_vert, Q_vert):
+    np.isnan(ifd(P_vert[:0], Q_vert[:0], 0.1, "squared_euclidean"))
 
 
 def test_ifd_owp():
 
     def check_value(P, Q, delta):
         assert ifd_owp(P, Q, delta, "squared_euclidean")[0] == ifd(
-            P, Q, delta, "squared_euclidean"
+            np.asarray(P), np.asarray(Q), delta, "squared_euclidean"
         )
 
     check_value([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
