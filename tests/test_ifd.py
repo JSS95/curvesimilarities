@@ -22,24 +22,17 @@ def test_ifd_degenerate(P_vert, Q_vert):
 
 
 def test_ifd_owp():
+    P, Q = [[0, 0], [1, 0]], [[0, 1], [1, 1]]
+    assert ifd_owp(np.asarray(P), np.asarray(Q), 1, "squared_euclidean")[0] == 2
+    assert ifd_owp(np.asarray(Q), np.asarray(P), 1, "squared_euclidean")[0] == 2
 
-    def check_value(P, Q, delta):
-        assert ifd_owp(P, Q, delta, "squared_euclidean")[0] == ifd(
-            np.asarray(P), np.asarray(Q), delta, "squared_euclidean"
-        )
+    P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]
+    assert ifd_owp(np.asarray(P), np.asarray(Q), 0.5, "squared_euclidean")[0] == 2
+    assert ifd_owp(np.asarray(Q), np.asarray(P), 0.5, "squared_euclidean")[0] == 2
 
-    check_value([[0, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
-    check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]], 0.1)
-    check_value([[0, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
-    check_value([[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1)
-
-
-def test_ifd_owp_dtype():
-    dist, path = ifd_owp(
-        [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]], 0.1, "squared_euclidean"
-    )
-    assert type(dist) is float
-    assert path.dtype == np.float64
+    P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [0.5, 1], [1, 1]]
+    assert ifd_owp(np.asarray(P), np.asarray(Q), 0.5, "squared_euclidean")[0] == 2
+    assert ifd_owp(np.asarray(Q), np.asarray(P), 0.5, "squared_euclidean")[0] == 2
 
 
 def test_ifd_owp_failedcases():

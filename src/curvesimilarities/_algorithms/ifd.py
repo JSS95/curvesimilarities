@@ -5,6 +5,68 @@ NAN = np.float64(np.nan)
 
 
 @njit(cache=True)
+def _ifd_acm(P, Q, delta, dist_type):
+    if len(P.shape) != 2:
+        raise ValueError("P must be a 2-dimensional array.")
+    if len(Q.shape) != 2:
+        raise ValueError("Q must be a 2-dimensional array.")
+    if P.shape[1] != Q.shape[1]:
+        raise ValueError("P and Q must have the same number of columns.")
+
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    P_subedges_num = _steiner_subedges(P, delta)
+    Q_subedges_num = _steiner_subedges(Q, delta)
+
+    p, q = len(P), len(Q)
+    P_idxs = np.empty(p, dtype=np.int_)
+    if p > 0:
+        P_idxs[0] = 0
+        P_idxs[1:] = np.cumsum(P_subedges_num)
+    Q_idxs = np.empty(q, dtype=np.int_)
+    if q > 0:
+        Q_idxs[0] = 0
+        Q_idxs[1:] = np.cumsum(Q_subedges_num)
+
+    pp = 0 if p == 0 else np.sum(P_subedges_num) + 1
+    qq = 0 if q == 0 else np.sum(Q_subedges_num) + 1
+    B = np.empty((pp, q), dtype=np.float64)
+    if pp > 0 and q > 0:
+        B[0, 0] = 0
+        B[-1, -1] = NAN
+    L = np.empty((p, qq), dtype=np.float64)
+    if p > 0 and qq > 0:
+        L[0, 0] = 0
+        L[-1, -1] = NAN
+
+    for i in range(p - 1):
+        p_pts = _steiner_pts(P[i : i + 2], P_subedges_num[i])
+        for j in range(q - 1):
+            q_pts = _steiner_pts(Q[j : j + 2], Q_subedges_num[j])
+
+            p_costs = B[P_idxs[i] : P_idxs[i + 1] + 1, j]
+            q_costs = L[i, Q_idxs[j] : Q_idxs[j + 1] + 1]
+
+            p1, q1 = _update_cell(
+                p_pts,
+                q_pts,
+                p_costs,
+                B[P_idxs[i] : P_idxs[i + 1] + 1, j + 1],
+                q_costs,
+                L[i + 1, Q_idxs[j] : Q_idxs[j + 1] + 1],
+                i == 0,
+                j == 0,
+                i == p - 2,
+                j == q - 2,
+                dist_type,
+            )
+
+            p_costs[-1:] = p1
+            q_costs[-1:] = q1
+
+    return B, L
+
+
+@njit(cache=True)
 def _ifd_acm_1d(P, Q, delta, dist_type):
     if len(P.shape) != 2:
         raise ValueError("P must be a 2-dimensional array.")
