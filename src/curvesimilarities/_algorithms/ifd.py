@@ -198,7 +198,7 @@ def _update_cell(
         s[0] = 0
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             q_cost_candidates[j] = q_costs[j] + cost
 
         s[1] = 0
@@ -209,7 +209,7 @@ def _update_cell(
         p_cost_candidates[0] = q_cost_candidates[0]  # cost from [0, 0] already known.
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             p_cost_candidates[i_] = p_costs[i_] + cost
 
         p_costs_out[i] = min(
@@ -235,7 +235,7 @@ def _update_cell(
         s[1] = 0
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             p_cost_candidates[i] = p_costs[i] + cost
 
         s[0] = 0
@@ -246,7 +246,7 @@ def _update_cell(
         q_cost_candidates[0] = p_cost_candidates[0]  # cost from [0, 0] already known.
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             q_cost_candidates[j_] = q_costs[j_] + cost
 
         q_costs_out[j] = min(
@@ -301,7 +301,7 @@ def _cell_info(P_pts, Q_pts):
 
 
 @njit(cache=True)
-def _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type):
+def _cell_owc(s, t, P1, Q1, u, v, b, dist_type):
     P_s = P1 + u * s[0]
     P_t = P1 + u * t[0]
     Q_s = Q1 + v * s[1]
@@ -326,14 +326,11 @@ def _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type):
             s_to_cs = _linepoint_cost(P_s, P_cs, Q_s, dist_type)
         else:  # up
             s_to_cs = _linepoint_cost(Q_s, Q_cs, P_s, dist_type)
-
         cs_to_ct = _lineline_cost(P_cs, P_ct, Q_cs, Q_ct, dist_type)
-
         if t[1] > t[0] + b:  # up
             ct_to_t = _linepoint_cost(Q_ct, Q_t, P_t, dist_type)
         else:  # right
             ct_to_t = _linepoint_cost(P_ct, P_t, Q_t, dist_type)
-
         cost = s_to_cs + cs_to_ct + ct_to_t
 
     else:  # pass c'
@@ -343,9 +340,74 @@ def _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type):
         else:  # up -> right
             cost1 = _linepoint_cost(Q_s, Q_t, P_s, dist_type)
             cost2 = _linepoint_cost(P_s, P_t, Q_t, dist_type)
-
         cost = cost1 + cost2
+
     return cost
+
+
+@njit(cache=True)
+def _cell_owp(s, t, P1, Q1, u, v, b):
+    P_s = P1 + u * s[0]
+    P_t = P1 + u * t[0]
+    Q_s = Q1 + v * s[1]
+    Q_t = Q1 + v * t[1]
+
+    verts = np.empty((4, 2), dtype=np.float64)
+    verts[0] = s
+    count = 1
+
+    if s[1] > s[0] + b:
+        cs_x, cs_y = s[1] - b, s[1]
+    else:
+        cs_x, cs_y = s[0], s[0] + b
+    if t[1] < t[0] + b:
+        ct_x, ct_y = t[1] - b, t[1]
+    else:
+        ct_x, ct_y = t[0], t[0] + b
+
+    if cs_x < ct_x:  # pass through lm
+        P_cs = P1 + u * cs_x
+        P_ct = P1 + u * ct_x
+        Q_cs = Q1 + v * cs_y
+        Q_ct = Q1 + v * ct_y
+
+        if s[1] > s[0] + b:  # right
+            l0_zero = np.all(P_s == P_cs)
+        else:  # up
+            l0_zero = np.all(Q_s == Q_cs)
+        l1_zero = np.all(P_cs == P_ct) and np.all(Q_cs == Q_ct)
+        if t[1] > t[0] + b:  # up
+            l2_zero = np.all(Q_ct == Q_t)
+        else:  # right
+            l2_zero = np.all(P_ct == P_t)
+
+        if not l0_zero:
+            verts[count] = (cs_x, cs_y)
+            count += 1
+        if not l1_zero:
+            verts[count] = (ct_x, ct_y)
+            count += 1
+        if not l2_zero:
+            verts[count] = t
+            count += 1
+
+    else:  # pass c'
+        if s[1] > s[0] + b:  # right -> up
+            l0_zero = np.all(P_s == P_t)
+            l1_zero = np.all(Q_s == Q_t)
+            c_prime = (t[0], s[1])
+        else:  # up -> right
+            l0_zero = np.all(Q_s == Q_t)
+            l1_zero = np.all(P_s == P_t)
+            c_prime = (s[0], t[1])
+
+        if not l0_zero:
+            verts[count] = c_prime
+            count += 1
+        if not l1_zero:
+            verts[count] = t
+            count += 1
+    return verts, count
 
 
 @njit(cache=True)
