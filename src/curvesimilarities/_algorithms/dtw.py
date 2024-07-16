@@ -71,7 +71,7 @@ def _dist(p, q, dist_type):
     elif dist_type == "squared_euclidean":
         ret = np.linalg.norm(p - q) ** 2
     else:
-        raise ValueError(f"Unknown type of distance: {dist_type}")
+        raise ValueError("Unknown type of distance.")
     return ret
 
 
