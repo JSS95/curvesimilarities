@@ -4,6 +4,7 @@ import numpy as np
 from numba import jit, njit
 from scipy.integrate import quad
 
+from ._algorithms.ifd import _ifd_acm_1d
 from .util import _sanitize_vertices
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
 ]
 
 
+NAN = np.float64(np.nan)
 EPSILON = np.finfo(np.float64).eps
 
 
@@ -43,6 +45,7 @@ def _ifd_degenerate_owp(P, Q, costfunc):
     return ret, path
 
 
+@njit(cache=True)
 def ifd(P, Q, delta, dist="euclidean"):
     r"""Integral Fréchet distance between two open polygonal curves.
 
@@ -121,29 +124,15 @@ def ifd(P, Q, delta, dist="euclidean"):
     Examples
     --------
     >>> P, Q = [[0, 0], [0.5, 0], [1, 0]], [[0, 1], [1, 1]]
-    >>> ifd(P, Q, 0.1, "squared_euclidean")
+    >>> ifd(np.asarray(P), np.asarray(Q), 0.1, "squared_euclidean")
     2.0
     """
-    if dist == "euclidean":
-        # TODO: use _line_point_integrate_Euc and _line_line_integrate_Euc
-        raise NotImplementedError
-    elif dist == "squared_euclidean":
-        linepoint_cost = _line_point_integrate_SqEuc
-        lineline_cost = _line_line_integrate_SqEuc
+    B, L = _ifd_acm_1d(P, Q, delta, dist)
+    if len(B) == 0 or len(L) == 0:
+        ret = NAN
     else:
-        raise ValueError(f"Unknown type of distance: {dist}")
-
-    P, Q = _sanitize_vertices(P, Q)
-    if P.size == 0 or Q.size == 0:
-        return np.float64(np.nan)
-
-    if len(P) != 1 and len(Q) != 1:
-        ret = _ifd(*_sample_ifd_pts(P, Q, delta), linepoint_cost, lineline_cost)
-        return float(ret)
-    elif len(P) == 1 and len(Q) == 1:
-        return np.float64(np.nan)
-    else:
-        return _ifd_degenerate(P, Q, linepoint_cost)
+        ret = L[-1]
+    return ret
 
 
 @jit(cache=True)
@@ -215,7 +204,7 @@ def _ifd(
                 p0 = p1
             q0 = q1
 
-    return Q_costs[-1]
+    return P_costs, Q_costs
 
 
 @jit(cache=True)
