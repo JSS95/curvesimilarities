@@ -174,7 +174,8 @@ def _update_cell(
     q_is_last,
     dist_type,
 ):
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+    P1, Q1 = p_pts[0], q_pts[0]
+    u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
 
     # Will be reused for each border point (t) to find best starting point (s).
     p_cost_candidates = np.empty(len(p_pts), dtype=np.float64)
@@ -183,7 +184,7 @@ def _update_cell(
     t = np.empty((2,), dtype=np.float64)
 
     # compute upper boundary
-    t[1] = L2
+    t[1] = delta_Q * (len(q_pts) - 1)
     if p_is_initial:  # No steiner points on left boundary; just check [0, 0]
         q_end_idx = 1
     else:
@@ -217,18 +218,18 @@ def _update_cell(
         )
 
     # compute right boundary
-    t[0] = L1
-    if p_is_last:  # No need steiner points on right boundary. Just check corner point.
-        q_start_idx = len(q_pts) - 1
-    elif q_is_initial:
-        q_start_idx = 0
-    else:  # LR corner already computed by the lower cell
-        q_start_idx = 1
+    t[0] = delta_P * (len(p_pts) - 1)
     if q_is_initial:  # No steiner points on bottom boundary; just check [0, 0]
         p_end_idx = 1
     else:
         p_end_idx = len(p_pts)
-    # Don't need to compute the last j (already done by P loop just above)
+    if p_is_last:  # No need steiner points on right boundary. Just check corner point.
+        q_start_idx = len(q_pts) - 1
+    elif q_is_initial:
+        q_start_idx = 0
+    else:  # LR corner already computed by the lower cell.
+        q_start_idx = 1
+    # No need to compute the last j (already done by P loop just above)
     for j in range(q_start_idx, len(q_pts) - 1):
         t[1] = delta_Q * j
 
@@ -252,7 +253,7 @@ def _update_cell(
         q_costs_out[j] = min(
             np.min(p_cost_candidates[:p_end_idx]), np.min(q_cost_candidates[:q_end_idx])
         )
-    q_costs_out[-1] = p_costs_out[-1]
+    q_costs_out[-1] = p_costs_out[-1]  # Fill the last j
 
     # Lower-right corner and upper-left corner of cells.
     return q_costs_out[:1], p_costs_out[:1]
@@ -297,7 +298,7 @@ def _cell_info(P_pts, Q_pts):
 
     delta_P = L1 / (len(P_pts) - 1)
     delta_Q = L2 / (len(Q_pts) - 1)
-    return P1, Q1, L1, L2, u, v, b, delta_P, delta_Q
+    return u, v, b, delta_P, delta_Q
 
 
 @njit(cache=True)
