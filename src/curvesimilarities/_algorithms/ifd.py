@@ -5,6 +5,68 @@ NAN = np.float64(np.nan)
 
 
 @njit(cache=True)
+def _ifd_acm(P, Q, delta, dist_type):
+    if len(P.shape) != 2:
+        raise ValueError("P must be a 2-dimensional array.")
+    if len(Q.shape) != 2:
+        raise ValueError("Q must be a 2-dimensional array.")
+    if P.shape[1] != Q.shape[1]:
+        raise ValueError("P and Q must have the same number of columns.")
+
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    P_subedges_num = _steiner_subedges(P, delta)
+    Q_subedges_num = _steiner_subedges(Q, delta)
+
+    p, q = len(P), len(Q)
+    P_idxs = np.empty(p, dtype=np.int_)
+    if p > 0:
+        P_idxs[0] = 0
+        P_idxs[1:] = np.cumsum(P_subedges_num)
+    Q_idxs = np.empty(q, dtype=np.int_)
+    if q > 0:
+        Q_idxs[0] = 0
+        Q_idxs[1:] = np.cumsum(Q_subedges_num)
+
+    pp = 0 if p == 0 else np.sum(P_subedges_num) + 1
+    qq = 0 if q == 0 else np.sum(Q_subedges_num) + 1
+    B = np.empty((pp, q), dtype=np.float64)
+    if pp > 0 and q > 0:
+        B[0, 0] = 0
+        B[-1, -1] = NAN
+    L = np.empty((p, qq), dtype=np.float64)
+    if p > 0 and qq > 0:
+        L[0, 0] = 0
+        L[-1, -1] = NAN
+
+    for i in range(p - 1):
+        p_pts = _steiner_pts(P[i : i + 2], P_subedges_num[i])
+        for j in range(q - 1):
+            q_pts = _steiner_pts(Q[j : j + 2], Q_subedges_num[j])
+
+            p_costs = B[P_idxs[i] : P_idxs[i + 1] + 1, j]
+            q_costs = L[i, Q_idxs[j] : Q_idxs[j + 1] + 1]
+
+            p1, q1 = _update_cell(
+                p_pts,
+                q_pts,
+                p_costs,
+                B[P_idxs[i] : P_idxs[i + 1] + 1, j + 1],
+                q_costs,
+                L[i + 1, Q_idxs[j] : Q_idxs[j + 1] + 1],
+                i == 0,
+                j == 0,
+                i == p - 2,
+                j == q - 2,
+                dist_type,
+            )
+
+            p_costs[-1:] = p1
+            q_costs[-1:] = q1
+
+    return B, L
+
+
+@njit(cache=True)
 def _ifd_acm_1d(P, Q, delta, dist_type):
     if len(P.shape) != 2:
         raise ValueError("P must be a 2-dimensional array.")
@@ -112,7 +174,8 @@ def _update_cell(
     q_is_last,
     dist_type,
 ):
-    P1, Q1, L1, L2, u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+    P1, Q1 = p_pts[0], q_pts[0]
+    u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
 
     # Will be reused for each border point (t) to find best starting point (s).
     p_cost_candidates = np.empty(len(p_pts), dtype=np.float64)
@@ -121,7 +184,7 @@ def _update_cell(
     t = np.empty((2,), dtype=np.float64)
 
     # compute upper boundary
-    t[1] = L2
+    t[1] = delta_Q * (len(q_pts) - 1)
     if p_is_initial:  # No steiner points on left boundary; just check [0, 0]
         q_end_idx = 1
     else:
@@ -136,7 +199,7 @@ def _update_cell(
         s[0] = 0
         for j in range(0, q_end_idx):
             s[1] = delta_Q * j
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             q_cost_candidates[j] = q_costs[j] + cost
 
         s[1] = 0
@@ -147,7 +210,7 @@ def _update_cell(
         p_cost_candidates[0] = q_cost_candidates[0]  # cost from [0, 0] already known.
         for i_ in range(1, p_end_idx):  # let bottom border points be (s). (to right)
             s[0] = delta_P * i_
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             p_cost_candidates[i_] = p_costs[i_] + cost
 
         p_costs_out[i] = min(
@@ -155,25 +218,25 @@ def _update_cell(
         )
 
     # compute right boundary
-    t[0] = L1
-    if p_is_last:  # No need steiner points on right boundary. Just check corner point.
-        q_start_idx = len(q_pts) - 1
-    elif q_is_initial:
-        q_start_idx = 0
-    else:  # LR corner already computed by the lower cell
-        q_start_idx = 1
+    t[0] = delta_P * (len(p_pts) - 1)
     if q_is_initial:  # No steiner points on bottom boundary; just check [0, 0]
         p_end_idx = 1
     else:
         p_end_idx = len(p_pts)
-    # Don't need to compute the last j (already done by P loop just above)
+    if p_is_last:  # No need steiner points on right boundary. Just check corner point.
+        q_start_idx = len(q_pts) - 1
+    elif q_is_initial:
+        q_start_idx = 0
+    else:  # LR corner already computed by the lower cell.
+        q_start_idx = 1
+    # No need to compute the last j (already done by P loop just above)
     for j in range(q_start_idx, len(q_pts) - 1):
         t[1] = delta_Q * j
 
         s[1] = 0
         for i in range(0, p_end_idx):
             s[0] = delta_P * i
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             p_cost_candidates[i] = p_costs[i] + cost
 
         s[0] = 0
@@ -184,13 +247,13 @@ def _update_cell(
         q_cost_candidates[0] = p_cost_candidates[0]  # cost from [0, 0] already known.
         for j_ in range(1, q_end_idx):  # cost from [0, 0] already known.
             s[1] = delta_Q * j_
-            cost = _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type)
+            cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
             q_cost_candidates[j_] = q_costs[j_] + cost
 
         q_costs_out[j] = min(
             np.min(p_cost_candidates[:p_end_idx]), np.min(q_cost_candidates[:q_end_idx])
         )
-    q_costs_out[-1] = p_costs_out[-1]
+    q_costs_out[-1] = p_costs_out[-1]  # Fill the last j
 
     # Lower-right corner and upper-left corner of cells.
     return q_costs_out[:1], p_costs_out[:1]
@@ -235,11 +298,11 @@ def _cell_info(P_pts, Q_pts):
 
     delta_P = L1 / (len(P_pts) - 1)
     delta_Q = L2 / (len(Q_pts) - 1)
-    return P1, Q1, L1, L2, u, v, b, delta_P, delta_Q
+    return u, v, b, delta_P, delta_Q
 
 
 @njit(cache=True)
-def _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type):
+def _cell_owc(s, t, P1, Q1, u, v, b, dist_type):
     P_s = P1 + u * s[0]
     P_t = P1 + u * t[0]
     Q_s = Q1 + v * s[1]
@@ -264,14 +327,11 @@ def _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type):
             s_to_cs = _linepoint_cost(P_s, P_cs, Q_s, dist_type)
         else:  # up
             s_to_cs = _linepoint_cost(Q_s, Q_cs, P_s, dist_type)
-
         cs_to_ct = _lineline_cost(P_cs, P_ct, Q_cs, Q_ct, dist_type)
-
         if t[1] > t[0] + b:  # up
             ct_to_t = _linepoint_cost(Q_ct, Q_t, P_t, dist_type)
         else:  # right
             ct_to_t = _linepoint_cost(P_ct, P_t, Q_t, dist_type)
-
         cost = s_to_cs + cs_to_ct + ct_to_t
 
     else:  # pass c'
@@ -281,9 +341,74 @@ def _owc_in_cell(s, t, P1, Q1, u, v, b, dist_type):
         else:  # up -> right
             cost1 = _linepoint_cost(Q_s, Q_t, P_s, dist_type)
             cost2 = _linepoint_cost(P_s, P_t, Q_t, dist_type)
-
         cost = cost1 + cost2
+
     return cost
+
+
+@njit(cache=True)
+def _cell_owp(s, t, P1, Q1, u, v, b):
+    P_s = P1 + u * s[0]
+    P_t = P1 + u * t[0]
+    Q_s = Q1 + v * s[1]
+    Q_t = Q1 + v * t[1]
+
+    verts = np.empty((4, 2), dtype=np.float64)
+    verts[0] = s
+    count = 1
+
+    if s[1] > s[0] + b:
+        cs_x, cs_y = s[1] - b, s[1]
+    else:
+        cs_x, cs_y = s[0], s[0] + b
+    if t[1] < t[0] + b:
+        ct_x, ct_y = t[1] - b, t[1]
+    else:
+        ct_x, ct_y = t[0], t[0] + b
+
+    if cs_x < ct_x:  # pass through lm
+        P_cs = P1 + u * cs_x
+        P_ct = P1 + u * ct_x
+        Q_cs = Q1 + v * cs_y
+        Q_ct = Q1 + v * ct_y
+
+        if s[1] > s[0] + b:  # right
+            l0_zero = np.all(P_s == P_cs)
+        else:  # up
+            l0_zero = np.all(Q_s == Q_cs)
+        l1_zero = np.all(P_cs == P_ct) and np.all(Q_cs == Q_ct)
+        if t[1] > t[0] + b:  # up
+            l2_zero = np.all(Q_ct == Q_t)
+        else:  # right
+            l2_zero = np.all(P_ct == P_t)
+
+        if not l0_zero:
+            verts[count] = (cs_x, cs_y)
+            count += 1
+        if not l1_zero:
+            verts[count] = (ct_x, ct_y)
+            count += 1
+        if not l2_zero:
+            verts[count] = t
+            count += 1
+
+    else:  # pass c'
+        if s[1] > s[0] + b:  # right -> up
+            l0_zero = np.all(P_s == P_t)
+            l1_zero = np.all(Q_s == Q_t)
+            c_prime = (t[0], s[1])
+        else:  # up -> right
+            l0_zero = np.all(Q_s == Q_t)
+            l1_zero = np.all(P_s == P_t)
+            c_prime = (s[0], t[1])
+
+        if not l0_zero:
+            verts[count] = c_prime
+            count += 1
+        if not l1_zero:
+            verts[count] = t
+            count += 1
+    return verts, count
 
 
 @njit(cache=True)
@@ -322,3 +447,125 @@ def _lineline_cost(a, b, c, d, dist_type):
     else:
         raise ValueError("Unknown type of distance.")
     return ret
+
+
+@njit(cache=True)
+def _ifd_owp(P, Q, B, L, delta, dist_type):
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    P_subedges_num = _steiner_subedges(P, delta)
+    Q_subedges_num = _steiner_subedges(Q, delta)
+
+    p, q = len(P), len(Q)
+    P_idxs = np.empty(p, dtype=np.int_)
+    if p > 0:
+        P_idxs[0] = 0
+        P_idxs[1:] = np.cumsum(P_subedges_num)
+    Q_idxs = np.empty(q, dtype=np.int_)
+    if q > 0:
+        Q_idxs[0] = 0
+        Q_idxs[1:] = np.cumsum(Q_subedges_num)
+
+    # Path passes (p + q - 3) cells. Each cell has max 4 vertices.
+    # (p + q - 4) vertices overlap.
+    MAX_PATH_VERT_NUM = (p + q - 3) * 4 - (p + q - 4)
+    PATH = np.empty((MAX_PATH_VERT_NUM, 2), dtype=np.float64)
+    COUNT = 0
+
+    P_params = np.empty(len(P), dtype=np.float64)
+    P_params[0] = 0
+    for i in range(1, len(P)):
+        P_params[i] = P_params[i - 1] + np.linalg.norm(P[i] - P[i - 1])
+    Q_params = np.empty(len(Q), dtype=np.float64)
+    Q_params[0] = 0
+    for j in range(1, len(Q)):
+        Q_params[j] = Q_params[j - 1] + np.linalg.norm(Q[j] - Q[j - 1])
+
+    if p > 0 and q > 0:
+        PATH[0] = (P_params[p - 1], Q_params[q - 1])
+        COUNT += 1
+
+    i, j = p - 2, q - 2  # cell indices
+    t_idx = np.array((P_subedges_num[i], Q_subedges_num[j]))
+    while True:
+        p_pts = _steiner_pts(P[i : i + 2], P_subedges_num[i])
+        q_pts = _steiner_pts(Q[j : j + 2], Q_subedges_num[j])
+        p_costs = B[P_idxs[i] : P_idxs[i + 1] + 1, j]
+        q_costs = L[i, Q_idxs[j] : Q_idxs[j + 1] + 1]
+        s_idx, path, count = _cell_path(
+            t_idx, p_pts, q_pts, p_costs, q_costs, i == 0, j == 0, dist_type
+        )
+        path = path[: count - 1]
+        path[:, 0] += P_params[i]
+        path[:, 1] += Q_params[j]
+        for i_ in range(count - 1):
+            PATH[COUNT + i_] = path[count - i_ - 2]
+        COUNT += count - 1
+
+        if i <= 0 and j <= 0:
+            break
+
+        t_idx[:] = s_idx
+        if s_idx[0] == 0 and i > 0:
+            i -= 1
+            t_idx[0] = P_subedges_num[i]
+        if s_idx[1] == 0 and j > 0:
+            j -= 1
+            t_idx[1] = Q_subedges_num[j]
+
+    return PATH[:COUNT]
+
+
+@njit(cache=True)
+def _cell_path(
+    t_idx,
+    p_pts,
+    q_pts,
+    p_costs,
+    q_costs,
+    p_is_initial,
+    q_is_initial,
+    dist_type,
+):
+    P1, Q1 = p_pts[0], q_pts[0]
+    u, v, b, delta_P, delta_Q = _cell_info(p_pts, q_pts)
+
+    p_cost_candidates = np.empty(len(p_pts), dtype=np.float64)
+    q_cost_candidates = np.empty(len(q_pts), dtype=np.float64)
+    t = np.array((delta_P * t_idx[0], delta_Q * t_idx[1]), dtype=np.float64)
+    s = np.empty((2,), dtype=np.float64)  # will be updated and reused
+
+    if q_is_initial:  # No need to check points on bottom boundary.
+        p_end_idx = 0
+    else:
+        p_end_idx = t_idx[0]
+    s[1] = 0
+    for i in range(0, p_end_idx + 1):
+        s[0] = delta_P * i
+        cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
+        p_cost_candidates[i] = p_costs[i] + cost
+
+    # [0, 0] already computed
+    q_cost_candidates[0] = p_cost_candidates[0]
+    if p_is_initial:  # No need to check steiner points on left boundary.
+        q_end_idx = 0
+    else:
+        q_end_idx = t_idx[1]
+    s[0] = 0
+    for j in range(1, q_end_idx + 1):
+        s[1] = delta_Q * j
+        cost = _cell_owc(s, t, P1, Q1, u, v, b, dist_type)
+        q_cost_candidates[j] = q_costs[j] + cost
+
+    p_min_idx = np.argmin(p_cost_candidates[: p_end_idx + 1])
+    pmin = p_cost_candidates[p_min_idx]
+    q_min_idx = np.argmin(q_cost_candidates[: q_end_idx + 1])
+    qmin = q_cost_candidates[q_min_idx]
+    if pmin < qmin:
+        s_idx = [p_min_idx, 0]
+    else:
+        s_idx = [0, q_min_idx]
+    s[0] = delta_P * s_idx[0]
+    s[1] = delta_Q * s_idx[1]
+    path, count = _cell_owp(s, t, P1, Q1, u, v, b)
+
+    return s_idx, path, count
