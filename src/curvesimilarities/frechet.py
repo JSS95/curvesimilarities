@@ -8,6 +8,7 @@ from ._algorithms.fd import _fd
 
 __all__ = [
     "fd",
+    "fd_params",
     "dfd",
     "dfd_idxs",
 ]
@@ -75,6 +76,45 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     1.0...
     """
     return _fd(P, Q, rel_tol, abs_tol)
+
+
+@njit(cache=True)
+def fd_params(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
+    """(Continuous) Fréchet distance and its parameters in curve space.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+    rel_tol, abs_tol : double
+        Relative and absolute tolerances for parametric search of the Fréchet distance.
+        The search is terminated if the upper boundary ``a`` and the lower boundary
+        ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
+
+    Returns
+    -------
+    dist : double
+        The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertice
+        is empty.
+    param_1 : int
+        Parameter of point contributing to Fréchet distance in *P*.
+    param_2 : int
+        Parameter of point contributing to Fréchet distance in *Q*.
+
+    Notes
+    -----
+    The resulting parameters adopt arc-length parametrization [#]_.
+
+    References
+    ----------
+    .. [#] https://en.wikipedia.org/wiki/Differentiable_curve
+           #Length_and_natural_parametrization
+    """
+    ...
 
 
 @njit(cache=True)

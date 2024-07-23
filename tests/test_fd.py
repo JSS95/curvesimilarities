@@ -1,7 +1,8 @@
 import numpy as np
+import pytest
 from scipy.spatial.distance import cdist
 
-from curvesimilarities.frechet import dfd, dfd_idxs, fd
+from curvesimilarities.frechet import dfd, dfd_idxs, fd, fd_params
 
 
 def test_fd_degenerate():
@@ -20,6 +21,12 @@ def test_fd_duplicate(P_vert, Q_vert):
     P_dup = np.repeat(P_vert, 2, axis=0)
     Q_dup = np.repeat(Q_vert, 2, axis=0)
     assert fd(P_dup, Q_dup) == fd(P_vert, Q_vert)
+
+
+@pytest.mark.skip
+def test_fd_params(P_vert, Q_vert):
+    d, _, _ = fd_params(P_vert, Q_vert)
+    assert d == fd(P_vert, Q_vert)
 
 
 def test_dfd_degenerate():
