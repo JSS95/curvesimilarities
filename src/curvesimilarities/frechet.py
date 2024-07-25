@@ -4,7 +4,7 @@ import numpy as np
 from numba import njit
 
 from ._algorithms.dfd import _dfd_ca, _dfd_ca_1d, _dfd_idxs
-from ._algorithms.fd import _fd
+from ._algorithms.fd import _fd, _fd_params
 
 __all__ = [
     "fd",
@@ -114,7 +114,7 @@ def fd_params(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     .. [#] https://en.wikipedia.org/wiki/Differentiable_curve
            #Length_and_natural_parametrization
     """
-    ...
+    return _fd_params(P, Q, rel_tol, abs_tol)
 
 
 @njit(cache=True)

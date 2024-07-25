@@ -3,6 +3,7 @@ from numba import njit
 
 EPSILON = np.finfo(np.float64).eps
 NAN = np.float64(np.nan)
+INF = np.float64(np.inf)
 
 
 @njit(cache=True)
@@ -290,3 +291,140 @@ def _free_interval(A, B, P, eps):
             start = end = NAN
         interval = [start, end]
     return interval
+
+
+@njit(cache=True)
+def _fd_params(P, Q, rel_tol, abs_tol):
+    if len(P.shape) != 2:
+        raise ValueError("P must be a 2-dimensional array.")
+    if len(Q.shape) != 2:
+        raise ValueError("Q must be a 2-dimensional array.")
+    if P.shape[1] != Q.shape[1]:
+        raise ValueError("P and Q must have the same number of columns.")
+
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    p, q = len(P), len(Q)
+
+    if not (p > 0 and q > 0):
+        return NAN, NAN, NAN
+
+    crit = _critical_values(P, Q, False)
+
+    # binary search
+    start, end = 0, len(crit) - 1
+    B, L = _reachable_boundaries(P, Q, crit[start])
+    if B[-1, -1, 1] == 1 or L[-1, -1, 1] == 1:
+        end = start
+    while end - start > 1:
+        mid = (start + end) // 2
+        B, L = _reachable_boundaries(P, Q, crit[mid])
+        if B[-1, -1, 1] == 1 or L[-1, -1, 1] == 1:
+            end = mid
+        else:
+            start = mid
+
+    # parametric search
+    e1, e2 = crit[start], crit[end]
+    while e2 - e1 > max(rel_tol * e2, abs_tol):
+        mid = (e1 + e2) / 2
+        if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
+            break
+        B, L = _reachable_boundaries(P, Q, mid)
+        if B[-1, -1, 1] == 1 or L[-1, -1, 1] == 1:
+            e2 = mid
+        else:
+            e1 = mid
+
+    # Compute passability
+    for _i in range(p - 1):
+        i = p - _i - 2
+        for _j in range(q - 1):
+            j = q - _j - 2
+            b_up, b_down = B[i, j + 1], B[i, j]
+            l_right, l_left = L[i + 1, j], L[i, j]
+
+            # update b_down
+            if not np.isnan(l_right[0]):
+                pass
+            elif b_up[1] >= b_down[0]:
+                b_down[1] = min(b_up[1], b_down[1])
+            else:
+                b_down[:] = [NAN, NAN]
+
+            # update l_left
+            if not np.isnan(b_up[0]):
+                pass
+            elif l_right[1] >= l_left[0]:
+                l_left[1] = min(l_right[1], l_left[1])
+            else:
+                l_left[:] = [NAN, NAN]
+
+    B_crits = np.empty_like(B)
+    for i in range(p - 1):
+        a, b = P[i], P[i + 1]
+        for j in range(q):
+            c = Q[j]
+            s, t = B[i, j]
+            if np.isnan(s):
+                B_crits[i, j, 0] = -INF
+            else:
+                B_crits[i, j, 0] = np.linalg.norm(a + (b - a) * s - c)
+            if np.isnan(t):
+                B_crits[i, j, 1] = -INF
+            else:
+                B_crits[i, j, 1] = np.linalg.norm(a + (b - a) * t - c)
+    Bmax_idx_flat = np.argmax(B_crits)
+    # unravel index
+    Bmax_idx = np.empty(3, dtype=np.int64)
+    Bmax_idx[0] = Bmax_idx_flat // (B_crits.shape[1] * B_crits.shape[2])
+    Bmax_idx_flat -= Bmax_idx[0] * (B_crits.shape[1] * B_crits.shape[2])
+    Bmax_idx[1] = Bmax_idx_flat // B_crits.shape[2]
+    Bmax_idx_flat -= Bmax_idx[1] * B_crits.shape[2]
+    Bmax_idx[2] = Bmax_idx_flat
+    Bmax = B_crits[Bmax_idx[0], Bmax_idx[1], Bmax_idx[2]]
+
+    L_crits = np.empty_like(L)
+    for i in range(p):
+        c = P[i]
+        for j in range(q - 1):
+            a, b = Q[j], Q[j + 1]
+            s, t = L[i, j]
+            if np.isnan(s):
+                L_crits[i, j, 0] = -INF
+            else:
+                L_crits[i, j, 0] = np.linalg.norm(a + (b - a) * s - c)
+            if np.isnan(t):
+                L_crits[i, j, 1] = -INF
+            else:
+                L_crits[i, j, 1] = np.linalg.norm(a + (b - a) * t - c)
+    Lmax_idx_flat = np.argmax(L_crits)
+    # unravel index
+    Lmax_idx = np.empty(3, dtype=np.int64)
+    Lmax_idx[0] = Lmax_idx_flat // (L_crits.shape[1] * L_crits.shape[2])
+    Lmax_idx_flat -= Lmax_idx[0] * (L_crits.shape[1] * L_crits.shape[2])
+    Lmax_idx[1] = Lmax_idx_flat // L_crits.shape[2]
+    Lmax_idx_flat -= Lmax_idx[1] * L_crits.shape[2]
+    Lmax_idx[2] = Lmax_idx_flat
+    Lmax = L_crits[Lmax_idx[0], Lmax_idx[1], Lmax_idx[2]]
+
+    P_cumsum = np.empty(len(P), dtype=np.float64)
+    P_cumsum[0] = 0
+    for i in range(len(P) - 1):
+        P_cumsum[i + 1] = np.linalg.norm(P[i + 1] - P[i])
+    Q_cumsum = np.empty(len(Q), dtype=np.float64)
+    Q_cumsum[0] = 0
+    for j in range(len(Q) - 1):
+        Q_cumsum[j + 1] = np.linalg.norm(Q[j + 1] - Q[j])
+
+    if Bmax < Lmax:
+        fd = Bmax
+        i, j, k = Bmax_idx
+        param0 = P_cumsum[i] + (P_cumsum[i + 1] - P_cumsum[i]) * B[i, j, k]
+        param1 = Q_cumsum[j]
+    else:
+        fd = Lmax
+        i, j, k = Lmax_idx
+        param0 = P_cumsum[i]
+        param1 = Q_cumsum[j] + (Q_cumsum[j + 1] - Q_cumsum[j]) * L[i, j, k]
+
+    return fd, param0, param1
