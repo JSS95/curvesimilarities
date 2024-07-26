@@ -101,7 +101,7 @@ def fd_params(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
         The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertice
         is empty.
     param : ndarray
-        Parameters of points contributing to Fréchet distance.
+        Parameters of critical points contributing to Fréchet distance.
 
     Notes
     -----
@@ -119,9 +119,9 @@ def fd_params(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     >>> _, params = fd_params(P, Q)
     >>> from curvesimilarities.util import sample_polyline
     >>> pts = [sample_polyline(P, params[:, 0]), sample_polyline(Q, params[:, 1])]
-    >>> import matplotlib.pyplot as plt  #doctest: +SKIP
-    >>> plt.plot(*P.T); plt.plot(*Q.T)  #doctest: +SKIP
-    >>> plt.plot(*np.array(pts).transpose(2, 0, 1), "--", color="gray")  #doctest: +SKIP
+    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+    >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
+    >>> plt.plot(*np.array(pts).transpose(2, 0, 1), "--", color="k")  # doctest: +SKIP
     """
     return _fd_params(P, Q, rel_tol, abs_tol)
 
@@ -207,6 +207,20 @@ def dfd_idxs(P, Q):
         Index of point contributing to discrete Fréchet distance in *P*.
     index_2 : int
         Index of point contributing to discrete Fréchet distance in *Q*.
+
+    Examples
+    --------
+    >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
+    >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
+    >>> from curvesimilarities.util import sample_polyline
+    >>> P_len = np.sum(np.linalg.norm(np.diff(P, axis=0), axis=-1))
+    >>> P_pts = sample_polyline(P, np.linspace(P_len, 0, 30))
+    >>> Q_len = np.sum(np.linalg.norm(np.diff(Q, axis=0), axis=-1))
+    >>> Q_pts = sample_polyline(Q, np.linspace(Q_len, 0, 30))
+    >>> _, idx0, idx1 = dfd_idxs(P_pts, Q_pts)
+    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+    >>> plt.plot(*P_pts.T, "x"); plt.plot(*Q_pts.T, "x")  # doctest: +SKIP
+    >>> plt.plot(*np.array([P_pts[idx0], Q_pts[idx1]]).T, "--")  # doctest: +SKIP
     """
     ca = _dfd_ca(P, Q)
     if ca.size == 0:

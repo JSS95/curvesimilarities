@@ -129,13 +129,18 @@ def dtw_owp(P, Q, dist="euclidean"):
 
     Examples
     --------
-    >>> P = np.linspace([0, 0], [1, 0], 10)
-    >>> Q = np.linspace([0, 1], [1, 1], 20)
-    >>> dist, path = dtw_owp(P, Q)
-    >>> dist / len(path)  # averaged dynamic time warping
-    1.00...
-    >>> import matplotlib.pyplot as plt #doctest: +SKIP
-    >>> plt.plot(*path.T, "x")  #doctest: +SKIP
+    >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
+    >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
+    >>> from curvesimilarities.util import sample_polyline
+    >>> P_len = np.sum(np.linalg.norm(np.diff(P, axis=0), axis=-1))
+    >>> P_pts = sample_polyline(P, np.linspace(P_len, 0, 30))
+    >>> Q_len = np.sum(np.linalg.norm(np.diff(Q, axis=0), axis=-1))
+    >>> Q_pts = sample_polyline(Q, np.linspace(Q_len, 0, 30))
+    >>> _, owp = dtw_owp(P_pts, Q_pts)
+    >>> lines = np.array([P_pts[owp[:, 0]], Q_pts[owp[:, 1]]])
+    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+    >>> plt.plot(*P_pts.T, "x"); plt.plot(*Q_pts.T, "x")  # doctest: +SKIP
+    >>> plt.plot(*lines.transpose(2, 0, 1), "--", color="gray")  # doctest: +SKIP
     """
     acm = _dtw_acm(P, Q, dist)
     if acm.size == 0:

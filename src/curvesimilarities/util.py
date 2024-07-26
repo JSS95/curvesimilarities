@@ -114,10 +114,6 @@ def curve_matching(P, Q, path, sample_num):
     >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
     >>> _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
     >>> pairs = curve_matching(P, Q, path, 100)
-    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-    >>> plt.plot(*np.array(P).T)  # doctest: +SKIP
-    >>> plt.plot(*np.array(Q).T)  # doctest: +SKIP
-    >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP
     """
     path_len = np.sum(np.linalg.norm(np.diff(path, axis=0), axis=-1))
     path_pts = sample_polyline(path, np.linspace(0, path_len, sample_num))
@@ -150,9 +146,6 @@ def sample_polyline(vert, param):
     --------
     >>> vert = [[0, 0], [0.5, 0.5], [1, 0]]
     >>> param = np.linspace(0, 2, 10)
-    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-    >>> plt.plot(*np.array(vert).T)  # doctest: +SKIP
-    >>> plt.plot(*sample_polyline(vert, param).T, "x")  # doctest: +SKIP
     """
     vert = np.asarray(vert)
 
