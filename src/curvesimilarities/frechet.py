@@ -100,10 +100,8 @@ def fd_params(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     dist : double
         The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertice
         is empty.
-    param_1 : int
-        Parameter of point contributing to Fréchet distance in *P*.
-    param_2 : int
-        Parameter of point contributing to Fréchet distance in *Q*.
+    param : ndarray
+        Parameters of points contributing to Fréchet distance.
 
     Notes
     -----

@@ -69,13 +69,13 @@ def _critical_values(P, Q, ANALYTIC):
     count = 0
     for i in range(p - 1):
         for j in range(q):
-            dist = _critical_b(P[i], P[i + 1], Q[j])
+            dist, _ = _critical_b(P[i], P[i + 1], Q[j])
             if dist > MAX_A:
                 crit_b[count] = dist
                 count += 1
     for i in range(p):
         for j in range(q - 1):
-            dist = _critical_b(Q[j], Q[j + 1], P[i])
+            dist, _ = _critical_b(Q[j], Q[j + 1], P[i])
             if dist > MAX_A:
                 crit_b[count] = dist
                 count += 1
@@ -90,14 +90,14 @@ def _critical_values(P, Q, ANALYTIC):
         for i in range(p):
             for j in range(i + 1, p):
                 for k in range(q - 1):
-                    dist = _critical_c(Q[k], Q[k + 1], P[i], P[j])
+                    dist, _ = _critical_c(Q[k], Q[k + 1], P[i], P[j])
                     if dist > MAX_A:
                         crit_c[count] = dist
                         count += 1
         for i in range(q):
             for j in range(i + 1, q):
                 for k in range(p - 1):
-                    dist = _critical_c(P[k], P[k + 1], Q[i], Q[j])
+                    dist, _ = _critical_c(P[k], P[k + 1], Q[i], Q[j])
                     if dist > MAX_A:
                         crit_c[count] = dist
                         count += 1
@@ -115,15 +115,18 @@ def _critical_b(A, B, P):
     w = P - A
     vv = np.dot(v, v)
     if vv == 0:
-        return np.linalg.norm(w)
+        t = np.float64(0)
+        return np.linalg.norm(w), t
     t = np.dot(v, w) / vv
     if t < 0:
         dist = np.linalg.norm(w)
+        t = np.float64(0)
     elif t > 1:
         dist = np.linalg.norm(P - B)
+        t = np.float64(1)
     else:
         dist = np.linalg.norm(t * v - w)
-    return dist
+    return dist, t
 
 
 @njit(cache=True)
@@ -138,17 +141,18 @@ def _critical_c(A, B, P1, P2):
     if a == 0:
         if np.abs(np.dot(AB, MA)) == np.linalg.norm(AB) * np.linalg.norm(MA):
             # M is on AB
-            ret = np.float64(0)
+            ret = np.linalg.norm(A - P1)
+            t = np.float64(0)
         else:
             ret = NAN
+            t = NAN
     else:
         t = -b / a
         if t < 0 or t > 1:
             ret = NAN
         else:
-            P1T = A + AB * t - P1
-            ret = np.linalg.norm(P1T)
-    return ret
+            ret = np.linalg.norm(A + AB * t - P1)
+    return ret, t
 
 
 @njit(cache=True)
@@ -306,11 +310,86 @@ def _fd_params(P, Q, rel_tol, abs_tol):
     p, q = len(P), len(Q)
 
     if not (p > 0 and q > 0):
-        return NAN, NAN, NAN
+        return NAN, np.empty((0, 2), dtype=np.float64)
 
-    crit = _critical_values(P, Q, False)
+    P_cumsum = np.empty(len(P), dtype=np.float64)
+    P_cumsum[0] = 0
+    for i in range(len(P) - 1):
+        P_cumsum[i + 1] = P_cumsum[i] + np.linalg.norm(P[i + 1] - P[i])
+    Q_cumsum = np.empty(len(Q), dtype=np.float64)
+    Q_cumsum[0] = 0
+    for j in range(len(Q) - 1):
+        Q_cumsum[j + 1] = Q_cumsum[j] + np.linalg.norm(Q[j + 1] - Q[j])
+
+    # critical values and their relevant indices
+    crit_a = np.empty(2, dtype=np.float64)
+    crit_a_params = np.empty((len(crit_a), 1, 2), dtype=np.float64)
+    crit_a[0] = np.linalg.norm(P[0] - Q[0])
+    crit_a_params[0, 0] = [P_cumsum[0], Q_cumsum[0]]
+    crit_a[1] = np.linalg.norm(P[-1] - Q[-1])
+    crit_a_params[1, 0] = [P_cumsum[-1], Q_cumsum[-1]]
+
+    crit_b = np.empty((p - 1) * q + p * (q - 1), dtype=np.float64)
+    crit_b_params = np.empty((len(crit_b), 1, 2), dtype=np.float64)
+    idx = 0
+    for i in range(p - 1):
+        for j in range(q):
+            dist, t = _critical_b(P[i], P[i + 1], Q[j])
+            crit_b[idx] = dist
+            crit_b_params[idx, 0, 0] = P_cumsum[i] + t * (P_cumsum[i + 1] - P_cumsum[i])
+            crit_b_params[idx, 0, 1] = Q_cumsum[j]
+            idx += 1
+    for i in range(p):
+        for j in range(q - 1):
+            dist, t = _critical_b(Q[j], Q[j + 1], P[i])
+            crit_b[idx] = dist
+            crit_b_params[idx, 0, 0] = P_cumsum[i]
+            crit_b_params[idx, 0, 1] = Q_cumsum[j] + t * (Q_cumsum[j + 1] - Q_cumsum[j])
+            idx += 1
+
+    crit_c = np.empty(
+        int(p * (p - 1) * (q - 1) / 2 + q * (q - 1) * (p - 1) / 2), dtype=np.float64
+    )
+    crit_c_params = np.empty((len(crit_c), 2, 2), dtype=np.float64)
+    idx = 0
+    for i in range(p):
+        for j in range(i + 1, p):
+            for k in range(q - 1):
+                dist, t = _critical_c(Q[k], Q[k + 1], P[i], P[j])
+                if np.isnan(dist):
+                    continue
+                crit_c[idx] = dist
+                crit_c_params[idx, 0, 0] = P_cumsum[i]
+                crit_c_params[idx, 0, 1] = Q_cumsum[k] + t * (
+                    Q_cumsum[k + 1] - Q_cumsum[k]
+                )
+                crit_c_params[idx, 1, 0] = P_cumsum[j]
+                crit_c_params[idx, 1, 1] = Q_cumsum[k] + t * (
+                    Q_cumsum[k + 1] - Q_cumsum[k]
+                )
+                idx += 1
+    for i in range(q):
+        for j in range(i + 1, q):
+            for k in range(p - 1):
+                dist, t = _critical_c(P[k], P[k + 1], Q[i], Q[j])
+                if np.isnan(dist):
+                    continue
+                crit_c[idx] = dist
+                crit_c_params[idx, 0, 0] = P_cumsum[k] + t * (
+                    P_cumsum[k + 1] - P_cumsum[k]
+                )
+                crit_c_params[idx, 0, 1] = Q_cumsum[i]
+                crit_c_params[idx, 1, 0] = P_cumsum[k] + t * (
+                    P_cumsum[k + 1] - P_cumsum[k]
+                )
+                crit_c_params[idx, 1, 1] = Q_cumsum[j]
+                idx += 1
+    crit_c = crit_c[:idx]
+    crit_c_params = crit_c_params[:idx]
 
     # binary search
+    THRES = np.max(crit_a)
+    crit = np.sort(np.concatenate((crit_a[crit_a >= THRES], crit_b[crit_b >= THRES])))
     start, end = 0, len(crit) - 1
     B, L = _reachable_boundaries(P, Q, crit[start])
     if B[-1, -1, 1] == 1 or L[-1, -1, 1] == 1:
@@ -334,97 +413,21 @@ def _fd_params(P, Q, rel_tol, abs_tol):
             e2 = mid
         else:
             e1 = mid
+    fred_dist = e2
 
-    # Compute passability
-    for _i in range(p - 1):
-        i = p - _i - 2
-        for _j in range(q - 1):
-            j = q - _j - 2
-            b_up, b_down = B[i, j + 1], B[i, j]
-            l_right, l_left = L[i + 1, j], L[i, j]
-
-            # update b_down
-            if not np.isnan(l_right[0]):
-                pass
-            elif b_up[1] >= b_down[0]:
-                b_down[1] = min(b_up[1], b_down[1])
-            else:
-                b_down[:] = [NAN, NAN]
-
-            # update l_left
-            if not np.isnan(b_up[0]):
-                pass
-            elif l_right[1] >= l_left[0]:
-                l_left[1] = min(l_right[1], l_left[1])
-            else:
-                l_left[:] = [NAN, NAN]
-
-    B_crits = np.empty_like(B)
-    for i in range(p - 1):
-        a, b = P[i], P[i + 1]
-        for j in range(q):
-            c = Q[j]
-            s, t = B[i, j]
-            if np.isnan(s):
-                B_crits[i, j, 0] = -INF
-            else:
-                B_crits[i, j, 0] = np.linalg.norm(a + (b - a) * s - c)
-            if np.isnan(t):
-                B_crits[i, j, 1] = -INF
-            else:
-                B_crits[i, j, 1] = np.linalg.norm(a + (b - a) * t - c)
-    Bmax_idx_flat = np.argmax(B_crits)
-    # unravel index
-    Bmax_idx = np.empty(3, dtype=np.int64)
-    Bmax_idx[0] = Bmax_idx_flat // (B_crits.shape[1] * B_crits.shape[2])
-    Bmax_idx_flat -= Bmax_idx[0] * (B_crits.shape[1] * B_crits.shape[2])
-    Bmax_idx[1] = Bmax_idx_flat // B_crits.shape[2]
-    Bmax_idx_flat -= Bmax_idx[1] * B_crits.shape[2]
-    Bmax_idx[2] = Bmax_idx_flat
-    Bmax = B_crits[Bmax_idx[0], Bmax_idx[1], Bmax_idx[2]]
-
-    L_crits = np.empty_like(L)
-    for i in range(p):
-        c = P[i]
-        for j in range(q - 1):
-            a, b = Q[j], Q[j + 1]
-            s, t = L[i, j]
-            if np.isnan(s):
-                L_crits[i, j, 0] = -INF
-            else:
-                L_crits[i, j, 0] = np.linalg.norm(a + (b - a) * s - c)
-            if np.isnan(t):
-                L_crits[i, j, 1] = -INF
-            else:
-                L_crits[i, j, 1] = np.linalg.norm(a + (b - a) * t - c)
-    Lmax_idx_flat = np.argmax(L_crits)
-    # unravel index
-    Lmax_idx = np.empty(3, dtype=np.int64)
-    Lmax_idx[0] = Lmax_idx_flat // (L_crits.shape[1] * L_crits.shape[2])
-    Lmax_idx_flat -= Lmax_idx[0] * (L_crits.shape[1] * L_crits.shape[2])
-    Lmax_idx[1] = Lmax_idx_flat // L_crits.shape[2]
-    Lmax_idx_flat -= Lmax_idx[1] * L_crits.shape[2]
-    Lmax_idx[2] = Lmax_idx_flat
-    Lmax = L_crits[Lmax_idx[0], Lmax_idx[1], Lmax_idx[2]]
-
-    P_cumsum = np.empty(len(P), dtype=np.float64)
-    P_cumsum[0] = 0
-    for i in range(len(P) - 1):
-        P_cumsum[i + 1] = np.linalg.norm(P[i + 1] - P[i])
-    Q_cumsum = np.empty(len(Q), dtype=np.float64)
-    Q_cumsum[0] = 0
-    for j in range(len(Q) - 1):
-        Q_cumsum[j + 1] = np.linalg.norm(Q[j + 1] - Q[j])
-
-    if Bmax < Lmax:
-        fd = Bmax
-        i, j, k = Bmax_idx
-        param0 = P_cumsum[i] + (P_cumsum[i + 1] - P_cumsum[i]) * B[i, j, k]
-        param1 = Q_cumsum[j]
+    # Find critical value closest to fd
+    crit_a = np.abs(crit_a - fred_dist)
+    a_minidx = np.argmin(crit_a)
+    crit_b = np.abs(crit_b - fred_dist)
+    b_minidx = np.argmin(crit_b)
+    crit_c = np.abs(crit_c - fred_dist)
+    c_minidx = np.argmin(crit_c)
+    mins = np.array([crit_a[a_minidx], crit_b[b_minidx], crit_c[c_minidx]])
+    val = np.min(mins)
+    if val == crit_a[a_minidx]:
+        param = crit_a_params[a_minidx]
+    elif val == crit_b[b_minidx]:
+        param = crit_b_params[b_minidx]
     else:
-        fd = Lmax
-        i, j, k = Lmax_idx
-        param0 = P_cumsum[i]
-        param1 = Q_cumsum[j] + (Q_cumsum[j + 1] - Q_cumsum[j]) * L[i, j, k]
-
-    return fd, param0, param1
+        param = crit_c_params[c_minidx]
+    return fred_dist, param
