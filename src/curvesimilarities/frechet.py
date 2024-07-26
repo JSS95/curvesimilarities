@@ -111,6 +111,17 @@ def fd_params(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     ----------
     .. [#] https://en.wikipedia.org/wiki/Differentiable_curve
            #Length_and_natural_parametrization
+
+    Examples
+    --------
+    >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
+    >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
+    >>> _, params = fd_params(P, Q)
+    >>> from curvesimilarities.util import sample_polyline
+    >>> pts = [sample_polyline(P, params[:, 0]), sample_polyline(Q, params[:, 1])]
+    >>> import matplotlib.pyplot as plt  #doctest: +SKIP
+    >>> plt.plot(*P.T); plt.plot(*Q.T)  #doctest: +SKIP
+    >>> plt.plot(*np.array(pts).transpose(2, 0, 1), "--", color="gray")  #doctest: +SKIP
     """
     return _fd_params(P, Q, rel_tol, abs_tol)
 
