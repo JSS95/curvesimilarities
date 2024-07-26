@@ -5,34 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.3.0] - 2024-07-26
 
 ### Added
 
 **Fréchet distance (`curvesimilarities.frechet`)**
 
 - Fréchet distance with parameters `fd_params()`.
-
-## [0.3.0a2] - 2024-07-17
-
-### Added
-
-**Fréchet distance (`curvesimilarities.frechet`)**
-
 - Discrete Fréchet distance with indices `dfd_idxs()`.
 
 ### Changed
 
 **BACKWARDS INCOMPATIBLE**
 
-- `dfd()` and `dfd_idxs()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
+- `dfd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
 - `dtw()` and `dtw_owp()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
 - `fd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
 - `ifd()` and `ifd_owp()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
-
-## [0.3.0a1] - 2024-06-26
-
-### Changed
 
 **Dynamic time warping (`curvesimilarities.dtw`)**
 
@@ -51,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Average Fréchet distance (`curvesimilarities.averagefrechet`)**
 
-- `curvesimilarities.averagefrechet` is removed.
+- `curvesimilarities.averagefrechet` module is removed.
 
 **Dynamic time warping (`curvesimilarities.dtw`)**
 
