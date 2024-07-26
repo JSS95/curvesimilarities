@@ -65,6 +65,8 @@ def parameter_space(P, Q, p_num, q_num):
 
         >>> eps = fd(P, Q)
         >>> plt.pcolormesh(p, q, weight.T < eps, cmap="gray")  # doctest: +SKIP
+        >>> plt.vlines(p_vert, 0, q[-1], "k", "--")  # doctest: +SKIP
+        >>> plt.hlines(q_vert, 0, p[-1], "k", "--")  # doctest: +SKIP
 
     Optimal warping path with integral Fréchet distance:
 
