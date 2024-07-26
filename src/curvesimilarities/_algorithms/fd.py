@@ -18,15 +18,11 @@ def _fd(P, Q, rel_tol, abs_tol):
 
     P, Q = P.astype(np.float64), Q.astype(np.float64)
     p, q = len(P), len(Q)
-    # It is impossible to get analytic result because of floating point error,
-    # which makes reachability fail with analytic solution...
-    # ANALYTIC = rel_tol == 0 and abs_tol == 0
-    ANALYTIC = False
 
     if not (p > 0 and q > 0):
         return NAN
 
-    crit = _critical_values(P, Q, ANALYTIC)
+    crit = _critical_values(P, Q)
 
     # binary search
     start, end = 0, len(crit) - 1
@@ -41,26 +37,22 @@ def _fd(P, Q, rel_tol, abs_tol):
         else:
             start = mid
 
-    if ANALYTIC:
-        ret = crit[end]
-    else:
-        # parametric search
-        e1, e2 = crit[start], crit[end]
-        while e2 - e1 > max(rel_tol * e2, abs_tol):
-            mid = (e1 + e2) / 2
-            if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
-                break
-            B, L = _reachable_boundaries_1d(P, Q, mid)
-            if B[-1, 1] == 1 or L[-1, 1] == 1:
-                e2 = mid
-            else:
-                e1 = mid
-        ret = e2
-    return ret
+    # parametric search
+    e1, e2 = crit[start], crit[end]
+    while e2 - e1 > max(rel_tol * e2, abs_tol):
+        mid = (e1 + e2) / 2
+        if (mid - e1 < EPSILON) or (e2 - mid < EPSILON):
+            break
+        B, L = _reachable_boundaries_1d(P, Q, mid)
+        if B[-1, 1] == 1 or L[-1, 1] == 1:
+            e2 = mid
+        else:
+            e1 = mid
+    return e2
 
 
 @njit(cache=True)
-def _critical_values(P, Q, ANALYTIC):
+def _critical_values(P, Q):
     p, q = len(P), len(Q)
     MAX_A = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
     crit_a = np.array((MAX_A,))
@@ -81,32 +73,7 @@ def _critical_values(P, Q, ANALYTIC):
                 count += 1
     crit_b = crit_b[:count]
 
-    if ANALYTIC:
-        crit_c = np.empty(
-            int(p * (p - 1) * (q - 1) / 2 + q * (q - 1) * (p - 1) / 2),
-            dtype=np.float64,
-        )
-        count = 0
-        for i in range(p):
-            for j in range(i + 1, p):
-                for k in range(q - 1):
-                    dist, _ = _critical_c(Q[k], Q[k + 1], P[i], P[j])
-                    if dist > MAX_A:
-                        crit_c[count] = dist
-                        count += 1
-        for i in range(q):
-            for j in range(i + 1, q):
-                for k in range(p - 1):
-                    dist, _ = _critical_c(P[k], P[k + 1], Q[i], Q[j])
-                    if dist > MAX_A:
-                        crit_c[count] = dist
-                        count += 1
-        crit_c = crit_c[:count]
-
-        crit = np.sort(np.concatenate((crit_a, crit_b, crit_c)))
-    else:
-        crit = np.sort(np.concatenate((crit_a, crit_b)))
-    return crit
+    return np.sort(np.concatenate((crit_a, crit_b)))
 
 
 @njit(cache=True)
