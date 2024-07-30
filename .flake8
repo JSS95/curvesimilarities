@@ -9,4 +9,3 @@ extend-ignore =
 per-file-ignores =
     tests/**:D
     doc/**:D
-docstring-convention = google
