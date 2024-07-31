@@ -146,16 +146,16 @@ def dfd(P, Q):
     Parameters
     ----------
     P : ndarray
-        An :math:`p` by :math:`n` array of :math:`p` vertices in an
+        An :math:`p` by :math:`n` array of :math:`p` points in an
         :math:`n`-dimensional space.
     Q : ndarray
-        An :math:`q` by :math:`n` array of :math:`q` vertices in an
+        An :math:`q` by :math:`n` array of :math:`q` points in an
         :math:`n`-dimensional space.
 
     Returns
     -------
     dist : double
-        The discrete Fréchet distance between *P* and *Q*, NaN if any vertice
+        The discrete Fréchet distance between *P* and *Q*, NaN if any array of points
         is empty.
 
     Raises
@@ -192,16 +192,16 @@ def dfd_idxs(P, Q):
     Parameters
     ----------
     P : ndarray
-        An :math:`p` by :math:`n` array of :math:`p` vertices in an
+        An :math:`p` by :math:`n` array of :math:`p` points in an
         :math:`n`-dimensional space.
     Q : ndarray
-        An :math:`q` by :math:`n` array of :math:`q` vertices in an
+        An :math:`q` by :math:`n` array of :math:`q` points in an
         :math:`n`-dimensional space.
 
     Returns
     -------
     d : double
-        The discrete Fréchet distance between *P* and *Q*, NaN if any vertice
+        The discrete Fréchet distance between *P* and *Q*, NaN if any array of points
         is empty.
     index_1 : int
         Index of point contributing to discrete Fréchet distance in *P*.

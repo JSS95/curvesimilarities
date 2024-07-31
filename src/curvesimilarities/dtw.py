@@ -38,10 +38,10 @@ def dtw(P, Q, dist="euclidean"):
     Parameters
     ----------
     P : ndarray
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` points in an
         :math:`n`-dimensional space.
     Q : ndarray
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        A :math:`q` by :math:`n` array of :math:`q` points in an
         :math:`n`-dimensional space.
     dist : {'euclidean', 'squared_euclidean'}
         Type of :math:`dist`. Refer to the Notes section for more information.
@@ -49,8 +49,8 @@ def dtw(P, Q, dist="euclidean"):
     Returns
     -------
     double
-        The dynamic time warping distance between *P* and *Q*, NaN if any vertice
-        is empty.
+        The dynamic time warping distance between *P* and *Q*, NaN if any
+        array of points is empty.
 
     Raises
     ------
@@ -105,10 +105,10 @@ def dtw_owp(P, Q, dist="euclidean"):
     Parameters
     ----------
     P : ndarray
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` points in an
         :math:`n`-dimensional space.
     Q : ndarray
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        A :math:`q` by :math:`n` array of :math:`q` points in an
         :math:`n`-dimensional space.
     dist : {'euclidean', 'squared_euclidean'}
         Type of :math:`dist`. Refer to :func:`dtw`.
@@ -116,10 +116,10 @@ def dtw_owp(P, Q, dist="euclidean"):
     Returns
     -------
     dtw : double
-        The dynamic time warping distance between *P* and *Q*, NaN if any vertice
-        is empty.
+        The dynamic time warping distance between *P* and *Q*, NaN if any
+        array of points is empty.
     owp : ndarray
-        Indices of *P* and *Q* for optimal warping path, empty if any vertice is
+        Indices of *P* and *Q* for optimal warping path, empty if any array of points
         empty.
 
     Raises
