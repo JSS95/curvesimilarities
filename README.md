@@ -7,7 +7,9 @@
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/curvesimilarities.svg)](https://pypi.python.org/pypi/curvesimilarities/)
 [![PyPI Version](https://img.shields.io/pypi/v/curvesimilarities.svg)](https://pypi.python.org/pypi/curvesimilarities/)
 
-Curve similarity measures, implemented using Numba.
+![title](https://curvesimilarities.readthedocs.io/en/latest/_images/plot-header.png)
+
+A Numpy-friendly package for curve similarity measures.
 
 List of supported measures:
 - Dynamic time warping distance (`dtw()`)
