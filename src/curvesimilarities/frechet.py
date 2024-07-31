@@ -4,9 +4,10 @@ import numpy as np
 from numba import njit
 
 from ._algorithms.dfd import _dfd_ca, _dfd_ca_1d, _dfd_idxs
-from ._algorithms.fd import _fd, _fd_params
+from ._algorithms.fd import _fd, _fd_params, _reachable_boundaries_1d
 
 __all__ = [
+    "decision_problem",
     "fd",
     "fd_params",
     "dfd",
@@ -16,6 +17,43 @@ __all__ = [
 
 EPSILON = np.finfo(np.float64).eps
 NAN = np.float64(np.nan)
+
+
+@njit(cache=True)
+def decision_problem(P, Q, epsilon):
+    """Decision problem of the (continuous) Fréchet distance.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+    epsilon : double
+        Minimum distance to be checked.
+
+    Returns
+    -------
+    bool
+        True if *epsilon* is greater than or equal to the Fréchet distance between
+        *P* and *Q*, false otherwise.
+    """
+    if len(P.shape) != 2:
+        raise ValueError("P must be a 2-dimensional array.")
+    if len(Q.shape) != 2:
+        raise ValueError("Q must be a 2-dimensional array.")
+    if P.shape[1] != Q.shape[1]:
+        raise ValueError("P and Q must have the same number of columns.")
+
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    B, L = _reachable_boundaries_1d(P, Q, epsilon)
+    if B[-1, 1] == 1 or L[-1, 1] == 1:
+        ret = True
+    else:
+        ret = False
+    return ret
 
 
 @njit(cache=True)
