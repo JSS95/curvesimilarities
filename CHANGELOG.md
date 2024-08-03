@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0] - 2024-07-26
 
+**BACKWARDS INCOMPATIBLE CHANGES**
+
+- `dfd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
+- `dtw()` and `dtw_owp()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
+- `fd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
+- `ifd()` and `ifd_owp()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
+
 ### Added
 
 **Fréchet distance (`curvesimilarities.frechet`)**
@@ -23,13 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Discrete Fréchet distance with indices `dfd_idxs()`.
 
 ### Changed
-
-**BACKWARDS INCOMPATIBLE**
-
-- `dfd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
-- `dtw()` and `dtw_owp()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
-- `fd()` is now numba-compiled, and strictly takes numpy arrays as `P` and `Q`.
-- `ifd()` and `ifd_owp()` are now numba-compiled, and strictly take numpy arrays as `P` and `Q`.
 
 **Dynamic time warping (`curvesimilarities.dtw`)**
 
