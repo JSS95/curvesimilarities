@@ -9,6 +9,7 @@ from ._algorithms.fd import _fd, _fd_params, _reachable_boundaries_1d
 __all__ = [
     "decision_problem",
     "fd",
+    "fd_matching",
     "fd_params",
     "dfd",
     "dfd_idxs",
@@ -114,6 +115,16 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     1.0...
     """
     return _fd(P, Q, rel_tol, abs_tol)
+
+
+def fd_matching(P, Q):
+    """Locally correct Fréchet matching [1]_.
+
+    References
+    ----------
+    .. [1] Buchin, Kevin, et al. "Locally correct Fréchet matchings."
+       Computational Geometry 76 (2019): 1-18.
+    """
 
 
 @njit(cache=True)
