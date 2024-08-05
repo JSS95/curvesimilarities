@@ -140,24 +140,24 @@ def _free_boundaries(P, Q, eps):
 
 @njit(cache=True)
 def _reachable_boundaries(BF, LF, BR_out, LR_out):
-    # Leftmost boundary
+    # Downmost boundary
     if BF[0, 0, 0] == 0:
         BR_out[0, 0] = BF[0, 0]
     else:
         BR_out[0, 0] = [NAN, NAN]
     for i in range(1, BR_out.shape[0]):
-        if BF[i - 1, 0, 1] == 1 and BF[i, 0, 0] == 0:
+        if BR_out[i - 1, 0, 1] == 1 and BF[i, 0, 0] == 0:
             BR_out[i, 0] = BF[i, 0]
         else:
             BR_out[i, 0] = [NAN, NAN]
 
-    # Downmost boundary
+    # Leftmost boundary
     if LF[0, 0, 0] == 0:
         LR_out[0, 0] = LF[0, 0]
     else:
         LR_out[0, 0] = [NAN, NAN]
     for j in range(1, LR_out.shape[1]):
-        if LF[0, j - 1, 1] == 1 and LF[0, j, 0] == 0:
+        if LR_out[0, j - 1, 1] == 1 and LF[0, j, 0] == 0:
             LR_out[0, j] = LF[0, j]
         else:
             LR_out[0, j] = [NAN, NAN]
