@@ -12,6 +12,84 @@ INF = np.float64(np.inf)
 
 @njit(cache=True)
 def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
+    if len(P.shape) != 2:
+        raise ValueError("P must be a 2-dimensional array.")
+    if len(Q.shape) != 2:
+        raise ValueError("Q must be a 2-dimensional array.")
+    if P.shape[1] != Q.shape[1]:
+        raise ValueError("P and Q must have the same number of columns.")
+
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    p, q = len(P), len(Q)
+
+    if p == 0 or q == 0:
+        eps = NAN
+        matching = np.empty((0, 2), dtype=np.float64)
+    elif p == 1 and q == 1:
+        eps = np.linalg.norm(P[0] - Q[0])
+        matching = np.array([[0, 0]], dtype=np.float64)
+    elif p == 1:
+        eps = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[0] - Q[1]))
+        matching = np.array([[0, 0], [0, q - 1]], dtype=np.float64)
+    elif q == 1:
+        eps = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[1] - Q[0]))
+        matching = np.array([[0, 0], [p - 1, 0]], dtype=np.float64)
+    elif p == 2 and q == 2:
+        eps = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[1] - Q[1]))
+        matching = np.array([[0, 0], [1, 1]], dtype=np.float64)
+    else:
+        # Free spaces constructed in different function and deleted before recursion
+        # to reduce memory usage.
+        eps, e_r, e_r_horiz = _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol)
+
+        i0, j0 = e_r[0]
+        P1 = _idx2subcurve(P, 0, i0)
+        Q1 = _idx2subcurve(Q, 0, j0)
+        i1, j1 = e_r[-1]
+        P2 = _idx2subcurve(P, i1, len(P) - 1)
+        Q2 = _idx2subcurve(Q, j1, len(Q) - 1)
+
+        _, mu_1 = _computeLCFM(P1, Q1, rel_tol, abs_tol, event_abs_tol, event_rel_tol)
+        _, mu_2 = _computeLCFM(P2, Q2, rel_tol, abs_tol, event_abs_tol, event_rel_tol)
+        # Scale mu s.t. indices are w.r.t full curves instead of subcurves
+        if e_r_horiz:
+            J, T = int(j0), j0 - int(j0)
+            thres = len(Q1) - 2
+            for idx in range(len(mu_1)):
+                _, j = mu_1[idx]
+                if j > thres:
+                    t = j - J
+                    mu_1[idx, 1] = J + t * T
+            mu_2[:, 0] += i1
+            for idx in range(len(mu_2)):
+                _, j = mu_2[idx]
+                if j < 1:
+                    mu_2[idx, 1] = J + T + j * (1 - T)
+                else:
+                    mu_2[idx, 1] += J
+        else:
+            I, T = int(i0), i0 - int(i0)
+            thres = len(P1) - 2
+            for idx in range(len(mu_1)):
+                i, _ = mu_1[idx]
+                if i > thres:
+                    t = i - I
+                    mu_1[idx, 0] = I + t * T
+            mu_2[:, 1] += j1
+            for idx in range(len(mu_2)):
+                i, _ = mu_2[idx]
+                if i < 1:
+                    mu_2[idx, 0] = I + T + i * (1 - T)
+                else:
+                    mu_2[idx, 0] += I
+
+        # # fd = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]), eps)
+        matching = np.concatenate((mu_1[:-1], e_r, mu_2[1:]))
+    return eps, matching
+
+
+@njit(cache=True)
+def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
     p, q = len(P), len(Q)
 
     # 1. Determine feasible epsilon and reachable boundaries
@@ -57,10 +135,26 @@ def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
     # 2. Compute passable boundaries
     BP, LP = _passable_boundaries(BR, LR, BR, LR)
 
-    # 3. Compute realizing set
+    # 3. Compute realizing set and get a significant event.
     BE, LE = _realizing_set(P, Q, eps, BF, LF, BP, LP, event_rel_tol, event_abs_tol)
 
-    fd = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]), eps)
+    # 4. Recursive computation.
+    if len(LE) > 0:
+        e_r_horiz = True
+        i0, i1, jt = LE[-1]
+        if i0 == i1:
+            e_r = np.array([[i0, jt]], dtype=np.float64)
+        else:
+            e_r = np.array([[i0, jt], [i1, jt]], dtype=np.float64)
+    else:
+        e_r_horiz = False
+        it, j0, j1 = BE[-1]
+        if j0 == j1:
+            e_r = np.array([[it, j0]], dtype=np.float64)
+        else:
+            e_r = np.array([[it, j0], [it, j1]], dtype=np.float64)
+
+    return eps, e_r, e_r_horiz
 
 
 @njit(cache=True)
@@ -130,7 +224,7 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
     count = 0
     for j in range(LP.shape[1]):
         g_star = 0
-        for i in range(1, LP.shape[0]):
+        for i in range(1, LP.shape[0] - 1):  # skip event ending on rightmost boundary
             if not np.isnan(BP[i - 1, j, 0]) or LF[g_star, j, 0] <= LF[i, j, 0]:
                 g_star = i
                 d, t = _critical_b(Q[j], Q[j + 1], P[i])
@@ -145,7 +239,11 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
             if err < L_E_minerr:
                 L_E_minerr = err
                 L_E_closest_event[0, :] = [g_star, i, j + t]
-            if LP[i, j, 0] == LP[i, j, 1]:
+            if j < LP.shape[1] - 1 and LP[i, j, 0] == 1 and LP[i, j + 1, 0] == 0:
+                is_singleton = False
+            elif j > 0 and LP[i, j, 1] == 0 and LP[i, j - 1, 1] == 1:
+                is_singleton = False
+            elif LP[i, j, 0] == LP[i, j, 1]:
                 is_singleton = True
             else:  # Singleton detection may have failed due to floating point error
                 is_realizing = err <= max(rel_tol * max(abs(eps), abs(d)), abs_tol)
@@ -162,7 +260,7 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
     count = 0
     for i in range(BP.shape[0]):
         g_star = 0
-        for j in range(1, BP.shape[1]):
+        for j in range(1, BP.shape[1] - 1):  # skip event ending on uppermost boundary
             if not np.isnan(LP[i, j - 1, 0]) or BF[i, g_star, 0] <= BF[i, j, 0]:
                 g_star = j
                 d, t = _critical_b(P[i], P[i + 1], Q[j])
@@ -177,7 +275,11 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
             if err < B_E_minerr:
                 B_E_minerr = err
                 B_E_closest_event[0, :] = [g_star, i, j + t]
-            if BP[i, j, 0] == BP[i, j, 1]:
+            if i < BP.shape[0] - 1 and BP[i, j, 0] == 1 and BP[i + 1, j, 0] == 0:
+                is_singleton = False
+            elif i > 0 and BP[i, j, 1] == 0 and BP[i - 1, j, 1] == 1:
+                is_singleton = False
+            elif BP[i, j, 0] == BP[i, j, 1]:
                 is_singleton = True
             else:  # Singleton detection may have failed due to floating point error
                 is_realizing = err <= max(rel_tol * max(abs(eps), abs(d)), abs_tol)
@@ -198,3 +300,24 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
             L_E = L_E_closest_event
 
     return B_E, L_E
+
+
+@njit(cache=True)
+def _idx2subcurve(curve, idx0, idx1):
+    i0, t0 = int(np.ceil(idx0)) - 1, idx0 - int(idx0)
+    if t0 == 0:
+        start = curve[i0 + 1]
+    else:
+        start = curve[i0] + t0 * (curve[i0 + 1] - curve[i0])
+
+    if idx0 == idx1:
+        return start.reshape(1, -1)
+
+    i1, t1 = int(np.ceil(idx1)) - 1, idx1 - int(idx1)
+    if t1 == 0:
+        end = curve[i1 + 1]
+    else:
+        end = curve[i1] + t1 * (curve[i1 + 1] - curve[i1])
+    return np.concatenate(
+        (start.reshape(1, -1), curve[int(idx0) + 1 : i1 + 1], end.reshape(1, -1))
+    )
