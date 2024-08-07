@@ -36,8 +36,6 @@ def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
         eps = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[1] - Q[1]))
         matching = np.array([[0, 0], [1, 1]], dtype=np.float64)
     else:
-        # Free spaces constructed in different function and deleted before recursion
-        # to reduce memory usage.
         eps, e_r, e_r_horiz = _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol)
 
         i0, j0 = e_r[0]
@@ -81,7 +79,6 @@ def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
                 else:
                     mu_2[idx, 0] += I
 
-        # # fd = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]), eps)
         matching = np.concatenate((mu_1[:-1], e_r, mu_2[1:]))
     return eps, matching
 
@@ -90,8 +87,6 @@ def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
 def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
     p, q = len(P), len(Q)
 
-    # 1. Determine feasible epsilon and reachable boundaries
-    # compute critical values
     crit = np.empty(p * (q - 1) + (p - 1) * q, dtype=np.float64)
     count = 0
     for i in range(p - 1):
@@ -103,7 +98,7 @@ def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
             crit[count], _ = _critical_b(Q[j], Q[j + 1], P[i])
             count += 1
     crit = np.sort(crit[:count])
-    # compute minimum feasible epsilons: 1. Binary search
+    # Compute minimum feasible epsilons: 1. Binary search
     start, end = 0, len(crit)
     BF, LF, BR, LR = _feasible_boundaries(P, Q, crit[start])
     if BR[-1, -1, 1] == 1 or LR[-1, -1, 1] == 1:
@@ -115,7 +110,7 @@ def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
             end = mid
         else:
             start = mid
-    # compute minimum feasible epsilons: 2. Parametric search
+    # Compute minimum feasible epsilons: 2. Parametric search
     e1, e2 = crit[start], crit[end]
     while e2 - e1 > max(rel_tol * e2, abs_tol):
         mid = (e1 + e2) / 2
@@ -127,26 +122,38 @@ def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
         else:
             e1 = mid
     eps = e2
-    if not (BR[-1, -1, 1] == 1 or LR[-1, -1, 1] == 1):  # need to update boundaries
+    if not (BR[-1, -1, 1] == 1 or LR[-1, -1, 1] == 1):  # compute one more last time
         BF, LF, BR, LR = _feasible_boundaries(P, Q, eps)
 
-    # 2. Compute passable boundaries
     BP, LP = _passable_boundaries(BR, LR, BR, LR)
 
-    # 3. Compute realizing set and get a significant event.
-    BE, LE = _realizing_set(P, Q, eps, BF, LF, BP, LP, event_rel_tol, event_abs_tol)
+    BE, LE, B_err, L_err = _realizing_set(
+        P, Q, eps, BF, LF, BP, LP, event_rel_tol, event_abs_tol
+    )
 
-    # 4. Recursive computation.
-    if len(LE) > 0:
+    # Select the most significant event.
+    if len(LE) == 0:
+        e_r_horiz = False
+        B_minerr_idx = np.argmin(B_err)
+    elif len(BE) == 0:
         e_r_horiz = True
-        i0, i1, jt = LE[-1]
+        L_minerr_idx = np.argmin(L_err)
+    else:
+        B_minerr_idx = np.argmin(B_err)
+        L_minerr_idx = np.argmin(L_err)
+        if B_err[B_minerr_idx] < L_err[L_minerr_idx]:
+            e_r_horiz = False
+        else:
+            e_r_horiz = True
+
+    if e_r_horiz:
+        i0, i1, jt = LE[L_minerr_idx]
         if i0 == i1:
             e_r = np.array([[i0, jt]], dtype=np.float64)
         else:
             e_r = np.array([[i0, jt], [i1, jt]], dtype=np.float64)
     else:
-        e_r_horiz = False
-        it, j0, j1 = BE[-1]
+        it, j0, j1 = BE[B_minerr_idx]
         if j0 == j1:
             e_r = np.array([[it, j0]], dtype=np.float64)
         else:
@@ -219,6 +226,7 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
     L_E_minerr, L_E_closest_event = INF, np.empty((1, 3), dtype=np.float64)  # Fallback
     # each row of L_E = i0, i1, j + t
     L_E = np.empty((LP.shape[0] * LP.shape[1], 3), dtype=np.float64)
+    L_E_err = np.empty(LP.shape[0] * LP.shape[1], dtype=np.float64)
     count = 0
     for j in range(LP.shape[1]):
         g_star = 0
@@ -248,13 +256,16 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
                 is_singleton = is_realizing & ~np.isnan(LP[i, j, 0])
             if is_singleton:
                 L_E[count] = [g_star, i, j + t]
+                L_E_err[count] = err
                 count += 1
                 g_star = i
     L_E = L_E[:count]
+    L_E_err = L_E_err[:count]
 
     B_E_minerr, B_E_closest_event = INF, np.empty((1, 3), dtype=np.float64)  # Fallback
     # each row of B_E = i + t, j0, j1
     B_E = np.empty((BP.shape[0] * BP.shape[1], 3), dtype=np.float64)
+    B_E_err = np.empty(BP.shape[0] * BP.shape[1], dtype=np.float64)
     count = 0
     for i in range(BP.shape[0]):
         g_star = 0
@@ -284,9 +295,11 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
                 is_singleton = is_realizing & ~np.isnan(BP[i, j, 0])
             if is_singleton:
                 B_E[count] = [i + t, g_star, j]
+                B_E_err[count] = err
                 count += 1
                 g_star = j
     B_E = B_E[:count]
+    B_E_err = B_E_err[:count]
 
     if len(B_E) == 0 and len(L_E) == 0:
         # Realizing event not detected because of too harsh tolerances.
@@ -294,10 +307,12 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
         # is the closest to epsilon as the only realizing event.
         if B_E_minerr < L_E_minerr:
             B_E = B_E_closest_event
+            B_E_err = np.array((B_E_minerr,), dtype=np.float64)
         else:
             L_E = L_E_closest_event
+            L_E_err = np.array((L_E_minerr,), dtype=np.float64)
 
-    return B_E, L_E
+    return B_E, L_E, B_E_err, L_E_err
 
 
 @njit(cache=True)
