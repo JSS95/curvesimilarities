@@ -5,6 +5,7 @@ from numba import njit
 
 from ._algorithms.dfd import _dfd_ca, _dfd_ca_1d, _dfd_idxs
 from ._algorithms.fd import _fd, _fd_params, _reachable_boundaries_1d
+from ._algorithms.lcfm import _computeLCFM
 
 __all__ = [
     "decision_problem",
@@ -117,14 +118,52 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     return _fd(P, Q, rel_tol, abs_tol)
 
 
-def fd_matching(P, Q):
+@njit(cache=True)
+def fd_matching(
+    P,
+    Q,
+    rel_tol=0.0,
+    abs_tol=float(EPSILON),
+    event_rel_tol=0.0,
+    event_abs_tol=float(EPSILON),
+):
     """Locally correct Fréchet matching [1]_.
+
+    A locally correct Fréchet matching is a matching between two curves whose any
+    sub-matching is still a Fréchet matching.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+    rel_tol, abs_tol : double
+        Relative and absolute tolerances for parametric search of the Fréchet distance.
+    event_rel_tol, event_abs_tol : double
+        Relative and absolute tolerances to determine realizing events.
+
+    Returns
+    -------
+    dist : double
+        The (continuous) Fréchet distance between *P* and *Q*.
+    matching : ndarray
+        Vertices of a locally correct Fréchet matching in parameter space.
 
     References
     ----------
     .. [1] Buchin, Kevin, et al. "Locally correct Fréchet matchings."
        Computational Geometry 76 (2019): 1-18.
     """
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    eps, matching = _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol)
+    if len(P) > 2 or len(Q) > 2:
+        dist = max(eps, np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
+    else:
+        dist = eps
+    return dist, matching
 
 
 @njit(cache=True)

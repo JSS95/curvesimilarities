@@ -19,9 +19,7 @@ def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
     if P.shape[1] != Q.shape[1]:
         raise ValueError("P and Q must have the same number of columns.")
 
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
     p, q = len(P), len(Q)
-
     if p == 0 or q == 0:
         eps = NAN
         matching = np.empty((0, 2), dtype=np.float64)
