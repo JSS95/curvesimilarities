@@ -1,6 +1,7 @@
 """Utility functions."""
 
 import numpy as np
+from numba import njit
 from scipy.spatial.distance import cdist
 
 __all__ = [
@@ -203,3 +204,31 @@ def refine_polyline(vert):
         ret[count] = current
         count += 1
     return ret[:count]
+
+
+@njit(cache=True)
+def index2arclength(curve, param):
+    """Convert index based parameters of a curve to arc length based parameters.
+
+    Parameters
+    ----------
+    curve : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    param : ndarray
+        Index based parameters.
+    """
+    len_cumsum = np.empty(len(curve), dtype=np.float64)
+    len_cumsum[0] = 0
+    for i in range(1, len(curve)):
+        len_cumsum[i] = len_cumsum[i - 1] + np.linalg.norm(curve[i] - curve[i - 1])
+
+    ret = np.empty_like(param, dtype=np.float64)
+    for i in range(len(param)):
+        n = int(param[i])
+        t = param[i] - n
+        if t == 0:
+            ret[i] = len_cumsum[n]
+        else:
+            ret[i] = len_cumsum[n] + t * (len_cumsum[n + 1] - len_cumsum[n])
+    return ret

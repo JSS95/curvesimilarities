@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Fréchet distance (`curvesimilarities.frechet`)**
 
-- `decision_problem()`.
+- Decision problem for Fréchet distance `decision_problem()`.
+- Locally correct Fréchet matching `fd_matching()`.
 
 ## [0.3.0] - 2024-07-26
 
