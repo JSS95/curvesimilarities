@@ -175,10 +175,10 @@ def fd_matching(
     """
     P, Q = P.astype(np.float64), Q.astype(np.float64)
     eps, matching = _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol)
-    if len(P) > 2 or len(Q) > 2:
+    if not np.isnan(eps):
         dist = max(eps, np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
     else:
-        dist = eps
+        dist = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
     if param == "arclength":
         matching = np.stack(
             (index2arclength(P, matching[:, 0]), index2arclength(Q, matching[:, 1]))

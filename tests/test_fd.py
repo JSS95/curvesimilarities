@@ -29,6 +29,12 @@ def test_fd_decision_problem(P_vert, Q_vert):
 
 
 def test_fd_matching(P_vert, Q_vert):
+    assert fd(P_vert[:1], Q_vert[:1]) == fd_matching(P_vert[:1], Q_vert[:1])[0]
+    assert fd(P_vert[:1], Q_vert[:2]) == fd_matching(P_vert[:1], Q_vert[:2])[0]
+    assert fd(P_vert[:2], Q_vert[:1]) == fd_matching(P_vert[:2], Q_vert[:1])[0]
+    assert fd(P_vert[:1], Q_vert[:3]) == fd_matching(P_vert[:1], Q_vert[:3])[0]
+    assert fd(P_vert[:3], Q_vert[:1]) == fd_matching(P_vert[:3], Q_vert[:1])[0]
+    assert fd(P_vert[:2], Q_vert[:2]) == fd_matching(P_vert[:2], Q_vert[:2])[0]
     assert fd(P_vert, Q_vert) == fd_matching(P_vert, Q_vert)[0]
 
 

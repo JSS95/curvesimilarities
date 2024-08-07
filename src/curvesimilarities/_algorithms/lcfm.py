@@ -20,20 +20,26 @@ def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
         raise ValueError("P and Q must have the same number of columns.")
 
     p, q = len(P), len(Q)
+    eps = NAN
     if p == 0 or q == 0:
-        eps = NAN
         matching = np.empty((0, 2), dtype=np.float64)
     elif p == 1 and q == 1:
-        eps = np.linalg.norm(P[0] - Q[0])
         matching = np.array([[0, 0]], dtype=np.float64)
     elif p == 1:
-        eps = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[0] - Q[1]))
+        if q > 2:
+            dists = np.empty(q - 2, dtype=np.float64)
+            for i in range(0, q - 2):
+                dists[i] = np.linalg.norm(P[0] - Q[i + 1])
+            eps = np.max(dists)
         matching = np.array([[0, 0], [0, q - 1]], dtype=np.float64)
     elif q == 1:
-        eps = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[1] - Q[0]))
+        if p > 2:
+            dists = np.empty(p - 2, dtype=np.float64)
+            for i in range(0, p - 2):
+                dists[i] = np.linalg.norm(P[i + 1] - Q[0])
+            eps = np.max(dists)
         matching = np.array([[0, 0], [p - 1, 0]], dtype=np.float64)
     elif p == 2 and q == 2:
-        eps = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[1] - Q[1]))
         matching = np.array([[0, 0], [1, 1]], dtype=np.float64)
     else:
         eps, e_r, e_r_horiz = _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol)
@@ -84,7 +90,8 @@ def _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
 
 
 @njit(cache=True)
-def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
+def _significant_events(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
+    # STEP 1: compute feasible epsilon and its reachable boundaries.
     p, q = len(P), len(Q)
 
     crit = np.empty(p * (q - 1) + (p - 1) * q, dtype=np.float64)
@@ -125,10 +132,23 @@ def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
     if not (BR[-1, -1, 1] == 1 or LR[-1, -1, 1] == 1):  # compute one more last time
         BF, LF, BR, LR = _feasible_boundaries(P, Q, eps)
 
+    # STEP 2. Compute passable boundaries.
     BP, LP = _passable_boundaries(BR, LR, BR, LR)
 
+    # STEP 3. Determine realizing set with passable boundaries.
+    # By using passable boundaries instead of reachable boundaries, insignificant events
+    # are automatically excluded.
     BE, LE, B_err, L_err = _realizing_set(
         P, Q, eps, BF, LF, BP, LP, event_rel_tol, event_abs_tol
+    )
+
+    return eps, BE, LE, B_err, L_err
+
+
+@njit(cache=True)
+def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
+    eps, BE, LE, B_err, L_err = _significant_events(
+        P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol
     )
 
     # Select the most significant event.
@@ -222,21 +242,21 @@ def _passable_boundaries(BR, LR, BP_out, LP_out):
 
 
 @njit(cache=True)
-def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
+def _realizing_set(P, Q, eps, BF, LF, BR, LR, rel_tol, abs_tol):
     L_E_minerr, L_E_closest_event = INF, np.empty((1, 3), dtype=np.float64)  # Fallback
     # each row of L_E = i0, i1, j + t
-    L_E = np.empty((LP.shape[0] * LP.shape[1], 3), dtype=np.float64)
-    L_E_err = np.empty(LP.shape[0] * LP.shape[1], dtype=np.float64)
+    L_E = np.empty((LR.shape[0] * LR.shape[1], 3), dtype=np.float64)
+    L_E_err = np.empty(LR.shape[0] * LR.shape[1], dtype=np.float64)
     count = 0
-    for j in range(LP.shape[1]):
+    for j in range(LR.shape[1]):
         g_star = 0
-        for i in range(1, LP.shape[0] - 1):  # skip event ending on rightmost boundary
-            if not np.isnan(BP[i - 1, j, 0]) or LF[g_star, j, 0] <= LF[i, j, 0]:
+        for i in range(1, LR.shape[0] - 1):  # skip event ending on rightmost boundary
+            if not np.isnan(BR[i - 1, j, 0]) or LF[g_star, j, 0] <= LF[i, j, 0]:
                 g_star = i
                 d, t = _critical_b(Q[j], Q[j + 1], P[i])
             else:
                 d, t = _critical_c(Q[j], Q[j + 1], P[g_star], P[i])
-            if t == 1 and j < LP.shape[1] - 1 and LP[i, j + 1, 0] == 0:
+            if t == 1 and j < LR.shape[1] - 1 and LR[i, j + 1, 0] == 0:
                 # Let upper cell deal with this event to prevent duplication.
                 continue
 
@@ -245,15 +265,15 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
             if err < L_E_minerr:
                 L_E_minerr = err
                 L_E_closest_event[0, :] = [g_star, i, j + t]
-            if j < LP.shape[1] - 1 and LP[i, j, 0] == 1 and LP[i, j + 1, 0] == 0:
+            if j < LR.shape[1] - 1 and LR[i, j, 0] == 1 and LR[i, j + 1, 0] == 0:
                 is_singleton = False
-            elif j > 0 and LP[i, j, 1] == 0 and LP[i, j - 1, 1] == 1:
+            elif j > 0 and LR[i, j, 1] == 0 and LR[i, j - 1, 1] == 1:
                 is_singleton = False
-            elif LP[i, j, 0] == LP[i, j, 1]:
+            elif LR[i, j, 0] == LR[i, j, 1]:
                 is_singleton = True
             else:  # Singleton detection may have failed due to floating point error
                 is_realizing = err <= max(rel_tol * max(abs(eps), abs(d)), abs_tol)
-                is_singleton = is_realizing & ~np.isnan(LP[i, j, 0])
+                is_singleton = is_realizing & ~np.isnan(LR[i, j, 0])
             if is_singleton:
                 L_E[count] = [g_star, i, j + t]
                 L_E_err[count] = err
@@ -264,18 +284,18 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
 
     B_E_minerr, B_E_closest_event = INF, np.empty((1, 3), dtype=np.float64)  # Fallback
     # each row of B_E = i + t, j0, j1
-    B_E = np.empty((BP.shape[0] * BP.shape[1], 3), dtype=np.float64)
-    B_E_err = np.empty(BP.shape[0] * BP.shape[1], dtype=np.float64)
+    B_E = np.empty((BR.shape[0] * BR.shape[1], 3), dtype=np.float64)
+    B_E_err = np.empty(BR.shape[0] * BR.shape[1], dtype=np.float64)
     count = 0
-    for i in range(BP.shape[0]):
+    for i in range(BR.shape[0]):
         g_star = 0
-        for j in range(1, BP.shape[1] - 1):  # skip event ending on uppermost boundary
-            if not np.isnan(LP[i, j - 1, 0]) or BF[i, g_star, 0] <= BF[i, j, 0]:
+        for j in range(1, BR.shape[1] - 1):  # skip event ending on uppermost boundary
+            if not np.isnan(LR[i, j - 1, 0]) or BF[i, g_star, 0] <= BF[i, j, 0]:
                 g_star = j
                 d, t = _critical_b(P[i], P[i + 1], Q[j])
             else:
                 d, t = _critical_c(P[i], P[i + 1], Q[g_star], Q[j])
-            if t == 1 and i < BP.shape[0] - 1 and BP[i + 1, j, 0] == 0:
+            if t == 1 and i < BR.shape[0] - 1 and BR[i + 1, j, 0] == 0:
                 # Let rhs cell deal with this event to prevent duplication.
                 continue
 
@@ -284,15 +304,15 @@ def _realizing_set(P, Q, eps, BF, LF, BP, LP, rel_tol, abs_tol):
             if err < B_E_minerr:
                 B_E_minerr = err
                 B_E_closest_event[0, :] = [g_star, i, j + t]
-            if i < BP.shape[0] - 1 and BP[i, j, 0] == 1 and BP[i + 1, j, 0] == 0:
+            if i < BR.shape[0] - 1 and BR[i, j, 0] == 1 and BR[i + 1, j, 0] == 0:
                 is_singleton = False
-            elif i > 0 and BP[i, j, 1] == 0 and BP[i - 1, j, 1] == 1:
+            elif i > 0 and BR[i, j, 1] == 0 and BR[i - 1, j, 1] == 1:
                 is_singleton = False
-            elif BP[i, j, 0] == BP[i, j, 1]:
+            elif BR[i, j, 0] == BR[i, j, 1]:
                 is_singleton = True
             else:  # Singleton detection may have failed due to floating point error
                 is_realizing = err <= max(rel_tol * max(abs(eps), abs(d)), abs_tol)
-                is_singleton = is_realizing & ~np.isnan(BP[i, j, 0])
+                is_singleton = is_realizing & ~np.isnan(BR[i, j, 0])
             if is_singleton:
                 B_E[count] = [i + t, g_star, j]
                 B_E_err[count] = err
