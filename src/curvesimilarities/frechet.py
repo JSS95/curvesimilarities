@@ -6,6 +6,7 @@ from numba import njit
 from ._algorithms.dfd import _dfd_ca, _dfd_ca_1d, _dfd_idxs
 from ._algorithms.fd import _fd, _fd_params, _reachable_boundaries_1d
 from ._algorithms.lcfm import _computeLCFM
+from .util import index2arclength
 
 __all__ = [
     "decision_problem",
@@ -122,6 +123,7 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
 def fd_matching(
     P,
     Q,
+    param="arclength",
     rel_tol=0.0,
     abs_tol=float(EPSILON),
     event_rel_tol=0.0,
@@ -140,6 +142,8 @@ def fd_matching(
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
+    param : {'arclength', 'index'}
+        Type of parametrization of *matching*.
     rel_tol, abs_tol : double
         Relative and absolute tolerances for parametric search of the Fréchet distance.
     event_rel_tol, event_abs_tol : double
@@ -156,6 +160,18 @@ def fd_matching(
     ----------
     .. [1] Buchin, Kevin, et al. "Locally correct Fréchet matchings."
        Computational Geometry 76 (2019): 1-18.
+
+    Examples
+    --------
+    >>> from curvesimilarities.frechet import fd_matching
+    >>> from curvesimilarities.util import curve_matching
+    >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
+    >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
+    >>> _, path = fd_matching(P, Q)
+    >>> pairs = curve_matching(P, Q, path, 100)
+    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+    >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
+    >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP
     """
     P, Q = P.astype(np.float64), Q.astype(np.float64)
     eps, matching = _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol)
@@ -163,6 +179,14 @@ def fd_matching(
         dist = max(eps, np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
     else:
         dist = eps
+    if param == "arclength":
+        matching = np.stack(
+            (index2arclength(P, matching[:, 0]), index2arclength(Q, matching[:, 1]))
+        ).T
+    elif param == "index":
+        pass
+    else:
+        raise ValueError("Unknown option for parametrization.")
     return dist, matching
 
 
