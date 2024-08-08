@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+**BACKWARDS INCOMPATIBLE CHANGES**
+
+- `fd_params()` is removed. Use `significant_events()` instead.
+
 ### Added
 
 **Fréchet distance (`curvesimilarities.frechet`)**

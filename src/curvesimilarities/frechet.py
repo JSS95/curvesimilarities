@@ -4,7 +4,7 @@ import numpy as np
 from numba import njit
 
 from ._algorithms.dfd import _dfd_ca, _dfd_ca_1d, _dfd_idxs
-from ._algorithms.fd import _fd, _fd_params, _reachable_boundaries_1d
+from ._algorithms.fd import _fd, _reachable_boundaries_1d
 from ._algorithms.lcfm import _computeLCFM, _significant_events
 from .util import index2arclength
 
@@ -13,7 +13,6 @@ __all__ = [
     "decision_problem",
     "significant_events",
     "fd_matching",
-    "fd_params",
     "dfd",
     "dfd_idxs",
 ]
@@ -314,54 +313,6 @@ def fd_matching(
     else:
         raise ValueError("Unknown option for parametrization.")
     return dist, matching
-
-
-@njit(cache=True)
-def fd_params(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
-    """(Continuous) Fréchet distance and its parameters in curve space.
-
-    Parameters
-    ----------
-    P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
-        :math:`n`-dimensional space.
-    Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
-        :math:`n`-dimensional space.
-    rel_tol, abs_tol : double
-        Relative and absolute tolerances for parametric search of the Fréchet distance.
-        The search is terminated if the upper boundary ``a`` and the lower boundary
-        ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
-
-    Returns
-    -------
-    dist : double
-        The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertice
-        is empty.
-    param : ndarray
-        Parameters of critical points contributing to Fréchet distance.
-
-    Notes
-    -----
-    The resulting parameters adopt arc-length parametrization [#]_.
-
-    References
-    ----------
-    .. [#] https://en.wikipedia.org/wiki/Differentiable_curve
-           #Length_and_natural_parametrization
-
-    Examples
-    --------
-    >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
-    >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
-    >>> _, params = fd_params(P, Q)
-    >>> from curvesimilarities.util import sample_polyline
-    >>> pts = [sample_polyline(P, params[:, 0]), sample_polyline(Q, params[:, 1])]
-    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-    >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
-    >>> plt.plot(*np.array(pts).transpose(2, 0, 1), "--", color="k")  # doctest: +SKIP
-    """
-    return _fd_params(P, Q, rel_tol, abs_tol)
 
 
 @njit(cache=True)
