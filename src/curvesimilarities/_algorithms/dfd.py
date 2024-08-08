@@ -12,7 +12,6 @@ def _dfd_ca(P, Q):
     if P.shape[1] != Q.shape[1]:
         raise ValueError("P and Q must have the same number of columns.")
 
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
     p, q = len(P), len(Q)
     ret = np.empty((p, q), dtype=np.float64)
 
@@ -46,7 +45,6 @@ def _dfd_ca_1d(P, Q):
     if P.shape[1] != Q.shape[1]:
         raise ValueError("P and Q must have the same number of columns.")
 
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
     p, q = len(P), len(Q)
     ret = np.empty(q, dtype=np.float64)
 

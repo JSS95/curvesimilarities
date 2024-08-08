@@ -16,7 +16,6 @@ def _fd(P, Q, rel_tol, abs_tol):
     if P.shape[1] != Q.shape[1]:
         raise ValueError("P and Q must have the same number of columns.")
 
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
     p, q = len(P), len(Q)
 
     if not (p > 0 and q > 0):

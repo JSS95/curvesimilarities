@@ -58,11 +58,6 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
         The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertice
         is empty.
 
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
     Notes
     -----
     This function implements Alt and Godau's algorithm [#]_.
@@ -79,7 +74,7 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     >>> fd(np.asarray(P), np.asarray(Q))
     1.0...
     """
-    return _fd(P, Q, rel_tol, abs_tol)
+    return _fd(P.astype(np.float64), Q.astype(np.float64), rel_tol, abs_tol)
 
 
 @njit(cache=True)
@@ -110,8 +105,7 @@ def decision_problem(P, Q, epsilon):
     if P.shape[1] != Q.shape[1]:
         raise ValueError("P and Q must have the same number of columns.")
 
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
-    B, L = _reachable_boundaries_1d(P, Q, epsilon)
+    B, L = _reachable_boundaries_1d(P.astype(np.float64), Q.astype(np.float64), epsilon)
     if B[-1, 1] == 1 or L[-1, 1] == 1:
         ret = True
     else:
@@ -254,8 +248,8 @@ def fd_matching(
 ):
     """Locally correct Fréchet matching [1]_.
 
-    A locally correct Fréchet matching is a matching between two curves whose any
-    sub-matching is still a Fréchet matching.
+    A locally correct Fréchet matching is a Fréchet matching between two curves whose
+    any sub-matching is still a Fréchet matching.
 
     Parameters
     ----------
@@ -279,6 +273,11 @@ def fd_matching(
     matching : ndarray
         Vertices of a locally correct Fréchet matching in parameter space.
 
+    Notes
+    -----
+    This function implements Buchin et al.'s algorithm [1]_, except that backtracking is
+    used to extract significant events.
+
     References
     ----------
     .. [1] Buchin, Kevin, et al. "Locally correct Fréchet matchings."
@@ -287,14 +286,14 @@ def fd_matching(
     Examples
     --------
     >>> from curvesimilarities.frechet import fd_matching
-    >>> from curvesimilarities.util import matching_pairs
+    >>> from curvesimilarities.util import parameter_space
     >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
     >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
-    >>> _, path = fd_matching(P, Q)
-    >>> pairs = matching_pairs(P, Q, path, 100)
+    >>> dist, path = fd_matching(P, Q)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-    >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
-    >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP
+    >>> weight, p, q, _, _ = parameter_space(P, Q, 200, 100)
+    >>> plt.pcolormesh(p, q, weight.T < dist, cmap="gray")  # doctest: +SKIP
+    >>> plt.plot(*path.T, "--")  # doctest: +SKIP
     """
     P, Q = P.astype(np.float64), Q.astype(np.float64)
     eps, matching = _computeLCFM(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol)
@@ -348,11 +347,6 @@ def dfd(P, Q):
         The discrete Fréchet distance between *P* and *Q*, NaN if any array of points
         is empty.
 
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
     Notes
     -----
     This function implements Eiter and Mannila's algorithm [#]_.
@@ -367,7 +361,7 @@ def dfd(P, Q):
     >>> dfd(np.asarray(P), np.asarray(Q))
     4.0
     """
-    ca = _dfd_ca_1d(P, Q)
+    ca = _dfd_ca_1d(P.astype(np.float64), Q.astype(np.float64))
     if ca.size == 0:
         ret = NAN
     else:
@@ -412,7 +406,7 @@ def dfd_idxs(P, Q):
     >>> plt.plot(*P_pts.T, "x"); plt.plot(*Q_pts.T, "x")  # doctest: +SKIP
     >>> plt.plot(*np.array([P_pts[idx0], Q_pts[idx1]]).T, "--")  # doctest: +SKIP
     """
-    ca = _dfd_ca(P, Q)
+    ca = _dfd_ca(P.astype(np.float64), Q.astype(np.float64))
     if ca.size == 0:
         ret = NAN, -1, -1
     else:
