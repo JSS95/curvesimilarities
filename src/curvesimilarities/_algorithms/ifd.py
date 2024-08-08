@@ -13,7 +13,6 @@ def _ifd_acm(P, Q, delta, dist_type):
     if P.shape[1] != Q.shape[1]:
         raise ValueError("P and Q must have the same number of columns.")
 
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
     P_subedges_num = _steiner_subedges(P, delta)
     Q_subedges_num = _steiner_subedges(Q, delta)
 
@@ -75,7 +74,6 @@ def _ifd_acm_1d(P, Q, delta, dist_type):
     if P.shape[1] != Q.shape[1]:
         raise ValueError("P and Q must have the same number of columns.")
 
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
     P_subedges_num = _steiner_subedges(P, delta)
     Q_subedges_num = _steiner_subedges(Q, delta)
 
@@ -451,7 +449,6 @@ def _lineline_cost(a, b, c, d, dist_type):
 
 @njit(cache=True)
 def _ifd_owp(P, Q, B, L, delta, dist_type):
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
     P_subedges_num = _steiner_subedges(P, delta)
     Q_subedges_num = _steiner_subedges(Q, delta)
 

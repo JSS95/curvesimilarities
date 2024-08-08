@@ -97,7 +97,7 @@ def ifd(P, Q, delta, dist="euclidean"):
     >>> ifd(np.asarray(P), np.asarray(Q), 0.1, "squared_euclidean")
     2.0
     """
-    B, L = _ifd_acm_1d(P, Q, delta, dist)
+    B, L = _ifd_acm_1d(P.astype(np.float64), Q.astype(np.float64), delta, dist)
     if len(B) == 0 or len(L) == 0:
         ret = NAN
     else:
@@ -147,6 +147,7 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
     >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
     >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP
     """
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
     B, L = _ifd_acm(P, Q, delta, dist)
     if len(B) == 0 or len(L) == 0:
         ifd = NAN

@@ -90,7 +90,7 @@ def dtw(P, Q, dist="euclidean"):
     >>> dtw(P, Q)
     20.0...
     """
-    acm = _dtw_acm_1d(P, Q, dist)
+    acm = _dtw_acm_1d(P.astype(np.float64), Q.astype(np.float64), dist)
     if acm.size == 0:
         ret = NAN
     else:
@@ -142,7 +142,7 @@ def dtw_owp(P, Q, dist="euclidean"):
     >>> plt.plot(*P_pts.T, "x"); plt.plot(*Q_pts.T, "x")  # doctest: +SKIP
     >>> plt.plot(*lines.transpose(2, 0, 1), "--", color="gray")  # doctest: +SKIP
     """
-    acm = _dtw_acm(P, Q, dist)
+    acm = _dtw_acm(P.astype(np.float64), Q.astype(np.float64), dist)
     if acm.size == 0:
         ret = NAN, np.empty((0, 2), dtype=np.int_)
     else:
