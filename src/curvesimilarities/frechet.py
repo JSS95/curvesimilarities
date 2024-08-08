@@ -117,7 +117,7 @@ def decision_problem(P, Q, epsilon):
 def significant_events(
     P,
     Q,
-    param="arclength",
+    param="arc-length",
     rel_tol=0.0,
     abs_tol=float(EPSILON),
     event_rel_tol=0.0,
@@ -136,7 +136,7 @@ def significant_events(
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
-    param : {'arclength', 'index'}
+    param : {'arc-length', 'vertex'}
         Type of parametrization of *matching*.
     rel_tol, abs_tol : double
         Relative and absolute tolerances for parametric search of the Fréchet distance.
@@ -221,14 +221,14 @@ def significant_events(
     events = events[:count]
     errors = errors[:count]
 
-    if param == "arclength":
+    if param == "arc-length":
         events = np.stack(
             (
                 index2arclength(P, events[:, :, 0].copy()),
                 index2arclength(Q, events[:, :, 1].copy()),
             )
         ).transpose(1, 2, 0)
-    elif param == "index":
+    elif param == "vertex":
         pass
     else:
         raise ValueError("Unknown option for parametrization.")
@@ -240,7 +240,7 @@ def significant_events(
 def fd_matching(
     P,
     Q,
-    param="arclength",
+    param="arc-length",
     rel_tol=0.0,
     abs_tol=float(EPSILON),
     event_rel_tol=0.0,
@@ -259,7 +259,7 @@ def fd_matching(
     Q : array_like
         A :math:`q` by :math:`n` array of :math:`q` vertices in an
         :math:`n`-dimensional space.
-    param : {'arclength', 'index'}
+    param : {'arc-length', 'vertex'}
         Type of parametrization of *matching*.
     rel_tol, abs_tol : double
         Relative and absolute tolerances for parametric search of the Fréchet distance.
@@ -301,14 +301,14 @@ def fd_matching(
         dist = max(eps, np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
     else:
         dist = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
-    if param == "arclength":
+    if param == "arc-length":
         matching = np.stack(
             (
                 index2arclength(P, matching[:, 0].copy()),
                 index2arclength(Q, matching[:, 1].copy()),
             )
         ).T
-    elif param == "index":
+    elif param == "vertex":
         pass
     else:
         raise ValueError("Unknown option for parametrization.")
