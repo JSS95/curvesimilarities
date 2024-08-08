@@ -160,7 +160,8 @@ def significant_events(
 
     Notes
     -----
-    Unlike the referenced paper [1]_ this functions includes type-A events.
+    This function implements Buchin et al.'s algorithm [1]_, except that backtracking is
+    used to extract significant events. Plus, the "type-A" events are included.
 
     References
     ----------

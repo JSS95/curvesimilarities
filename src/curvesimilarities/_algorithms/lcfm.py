@@ -132,13 +132,12 @@ def _significant_events(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
     if not (BR[-1, -1, 1] == 1 or LR[-1, -1, 1] == 1):  # compute one more last time
         BF, LF, BR, LR = _feasible_boundaries(P, Q, eps)
 
-    # STEP 2. Compute passable boundaries.
+    # STEP 2. Compute passable boundaries by backtracking.
     BP, LP = _passable_boundaries(BR, LR, BR, LR)
 
     # STEP 3. Determine realizing set with passable boundaries.
     # By using passable boundaries instead of reachable boundaries, insignificant events
     # are automatically excluded.
-    # This method differs from Buchin et al's paper (2019), but it seems to be alright.
     BE, LE, BE_val, LE_val, BE_err, LE_err = _realizing_set(
         P, Q, eps, BF, LF, BP, LP, event_rel_tol, event_abs_tol
     )
