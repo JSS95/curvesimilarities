@@ -5,12 +5,13 @@ from numba import njit
 
 from ._algorithms.dfd import _dfd_ca, _dfd_ca_1d, _dfd_idxs
 from ._algorithms.fd import _fd, _fd_params, _reachable_boundaries_1d
-from ._algorithms.lcfm import _computeLCFM
+from ._algorithms.lcfm import _computeLCFM, _significant_events
 from .util import index2arclength
 
 __all__ = [
-    "decision_problem",
     "fd",
+    "decision_problem",
+    "significant_events",
     "fd_matching",
     "fd_params",
     "dfd",
@@ -20,43 +21,6 @@ __all__ = [
 
 EPSILON = np.finfo(np.float64).eps
 NAN = np.float64(np.nan)
-
-
-@njit(cache=True)
-def decision_problem(P, Q, epsilon):
-    """Decision problem of the (continuous) Fréchet distance.
-
-    Parameters
-    ----------
-    P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
-        :math:`n`-dimensional space.
-    Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
-        :math:`n`-dimensional space.
-    epsilon : double
-        Minimum distance to be checked.
-
-    Returns
-    -------
-    bool
-        True if *epsilon* is greater than or equal to the Fréchet distance between
-        *P* and *Q*, false otherwise.
-    """
-    if len(P.shape) != 2:
-        raise ValueError("P must be a 2-dimensional array.")
-    if len(Q.shape) != 2:
-        raise ValueError("Q must be a 2-dimensional array.")
-    if P.shape[1] != Q.shape[1]:
-        raise ValueError("P and Q must have the same number of columns.")
-
-    P, Q = P.astype(np.float64), Q.astype(np.float64)
-    B, L = _reachable_boundaries_1d(P, Q, epsilon)
-    if B[-1, 1] == 1 or L[-1, 1] == 1:
-        ret = True
-    else:
-        ret = False
-    return ret
 
 
 @njit(cache=True)
@@ -117,6 +81,165 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
     1.0...
     """
     return _fd(P, Q, rel_tol, abs_tol)
+
+
+@njit(cache=True)
+def decision_problem(P, Q, epsilon):
+    """Decision problem of the (continuous) Fréchet distance.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+    epsilon : double
+        Minimum distance to be checked.
+
+    Returns
+    -------
+    bool
+        True if *epsilon* is greater than or equal to the Fréchet distance between
+        *P* and *Q*, false otherwise.
+    """
+    if len(P.shape) != 2:
+        raise ValueError("P must be a 2-dimensional array.")
+    if len(Q.shape) != 2:
+        raise ValueError("Q must be a 2-dimensional array.")
+    if P.shape[1] != Q.shape[1]:
+        raise ValueError("P and Q must have the same number of columns.")
+
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    B, L = _reachable_boundaries_1d(P, Q, epsilon)
+    if B[-1, 1] == 1 or L[-1, 1] == 1:
+        ret = True
+    else:
+        ret = False
+    return ret
+
+
+@njit(cache=True)
+def significant_events(
+    P,
+    Q,
+    param="arclength",
+    rel_tol=0.0,
+    abs_tol=float(EPSILON),
+    event_rel_tol=0.0,
+    event_abs_tol=float(EPSILON),
+):
+    """Return significant events of the (continuous) Fréchet distance [1]_ .
+
+    Significant events are point pairs which determine the Fréchet distance between two
+    curves.
+
+    Parameters
+    ----------
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        :math:`n`-dimensional space.
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        :math:`n`-dimensional space.
+    param : {'arclength', 'index'}
+        Type of parametrization of *matching*.
+    rel_tol, abs_tol : double
+        Relative and absolute tolerances for parametric search of the Fréchet distance.
+    event_rel_tol, event_abs_tol : double
+        Relative and absolute tolerances to determine realizing events.
+
+    Returns
+    -------
+    events : ndarray
+        :math:`N` significant events in a :math:`(N, 2, 2)`-shaped array of parameters.
+        The second axis is the starting and ending points of the event.
+        The last axis is the parameters of *P* and *Q*.
+    errors : ndarray
+        Difference between the Fréchet distance and the values of the events.
+
+    Notes
+    -----
+    Unlike the referenced paper [1]_ this functions includes type-A events.
+
+    References
+    ----------
+    .. [1] Buchin, K., et al. "Locally correct Fréchet matchings."
+       Computational Geometry 76 (2019): 1-18.
+
+    Examples
+    --------
+    >>> from curvesimilarities.frechet import significant_events
+    >>> from curvesimilarities.util import parameter_space
+    >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
+    >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
+    >>> events, _ = significant_events(P, Q)
+    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+    >>> weight, p, q, _, _ = parameter_space(P, Q, 200, 100)
+    >>> plt.pcolormesh(p, q, weight.T < fd(P, Q), cmap="gray")  # doctest: +SKIP
+    >>> plt.plot(*events.transpose(2, 1, 0), "o-")  # doctest: +SKIP
+    """
+    P, Q = P.astype(np.float64), Q.astype(np.float64)
+    p, q = len(P), len(Q)
+
+    events = np.empty((p * q, 2, 2), dtype=np.float64)
+    errors = np.empty(p * q, dtype=np.float64)
+    count = 0
+    if p == 0 or q == 0:
+        return events, errors
+
+    A0 = np.linalg.norm(P[0] - Q[0])
+    A1 = np.linalg.norm(P[-1] - Q[-1])
+    if p <= 2 and q <= 2:
+        d = max(A0, A1)
+    else:
+        eps, BE, LE, BE_val, LE_val, _, _ = _significant_events(
+            P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol
+        )
+        d = max(eps, A0, A1)
+        if abs(d - eps) <= max(event_rel_tol * max(abs(eps), abs(d)), event_abs_tol):
+            # BE and LE are significant events (if exist).
+            for i in range(len(BE)):
+                it, j0, j1 = BE[i]
+                events[count, 0] = [it, j0]
+                events[count, 1] = [it, j1]
+                errors[count] = abs(d - BE_val[i])
+                count += 1
+            for j in range(len(LE)):
+                i0, i1, jt = LE[j]
+                events[count, 0] = [i0, jt]
+                events[count, 1] = [i1, jt]
+                errors[count] = abs(d - LE_val[i])
+                count += 1
+    if abs(d - A0) <= max(event_rel_tol * max(abs(A0), abs(d)), event_abs_tol):
+        # A0 is a significant event.
+        events[count, 0] = [0, 0]
+        events[count, 1] = [0, 0]
+        errors[count] = abs(d - A0)
+        count += 1
+    if abs(d - A1) <= max(event_rel_tol * max(abs(A1), abs(d)), event_abs_tol):
+        # A1 is a significant event.
+        events[count, 0] = [p - 1, q - 1]
+        events[count, 1] = [p - 1, q - 1]
+        errors[count] = abs(d - A1)
+        count += 1
+    events = events[:count]
+    errors = errors[:count]
+
+    if param == "arclength":
+        events = np.stack(
+            (
+                index2arclength(P, events[:, :, 0].copy()),
+                index2arclength(Q, events[:, :, 1].copy()),
+            )
+        ).transpose(1, 2, 0)
+    elif param == "index":
+        pass
+    else:
+        raise ValueError("Unknown option for parametrization.")
+
+    return events, errors
 
 
 @njit(cache=True)
@@ -181,7 +304,10 @@ def fd_matching(
         dist = max(np.linalg.norm(P[0] - Q[0]), np.linalg.norm(P[-1] - Q[-1]))
     if param == "arclength":
         matching = np.stack(
-            (index2arclength(P, matching[:, 0]), index2arclength(Q, matching[:, 1]))
+            (
+                index2arclength(P, matching[:, 0].copy()),
+                index2arclength(Q, matching[:, 1].copy()),
+            )
         ).T
     elif param == "index":
         pass
