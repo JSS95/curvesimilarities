@@ -24,10 +24,10 @@ NAN = np.float64(np.nan)
 
 @njit(cache=True)
 def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
-    r"""(Continuous) Fréchet distance between two open polygonal curves.
+    r"""(Continuous) Fréchet distance between two open polylines.
 
     Let :math:`f: [0, 1] \to \Omega` and :math:`g: [0, 1] \to \Omega` be curves
-    where :math:`\Omega` is a metric space. The Fréchet distance between
+    in a metric space :math:`\Omega`. The Fréchet distance between
     :math:`f` and :math:`g` is defined as
 
     .. math::
@@ -36,35 +36,42 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
         \lVert f(\alpha(t)) - g(\beta(t)) \rVert,
 
     where :math:`\alpha, \beta: [0, 1] \to [0, 1]` are continuous non-decreasing
-    surjections and :math:`\lVert \cdot \rVert` is the underlying metric, which
-    is the Euclidean metric in this implementation.
+    surjections and :math:`\lVert \cdot \rVert` is the underlying metric.
+    The Euclidean metric is used in this function.
 
     Parameters
     ----------
     P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
     Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     rel_tol, abs_tol : double
         Relative and absolute tolerances for parametric search of the Fréchet distance.
-        The search is terminated if the upper boundary ``a`` and the lower boundary
-        ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
 
     Returns
     -------
     dist : double
-        The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertice
+        The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertex
         is empty.
+
+    See Also
+    --------
+    decision_problem
+    significant_events
+    fd_matching
 
     Notes
     -----
-    This function implements Alt and Godau's algorithm [#]_.
+    This function implements Alt and Godau's algorithm [1]_.
+
+    The parametric search for the Fréchet distance terminates if the upper boundary
+    ``a`` and the lower boundary ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
 
     References
     ----------
-    .. [#] Alt, H., & Godau, M. (1995). Computing the Fréchet distance between
+    .. [1] Alt, H., & Godau, M. (1995). Computing the Fréchet distance between
        two polygonal curves. International Journal of Computational Geometry &
        Applications, 5(01n02), 75-91.
 
@@ -84,10 +91,10 @@ def decision_problem(P, Q, epsilon):
     Parameters
     ----------
     P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
     Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     epsilon : double
         Minimum distance to be checked.
@@ -125,21 +132,20 @@ def significant_events(
 ):
     """Return significant events of the (continuous) Fréchet distance [1]_ .
 
-    Significant events are point pairs which determine the Fréchet distance between two
-    curves.
+    A significant event is a matching which determines the Fréchet distance.
 
     Parameters
     ----------
     P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
     Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     param : {'arc-length', 'vertex'}
-        Type of parametrization of *matching*.
+        Parametrization of matching.
     rel_tol, abs_tol : double
-        Relative and absolute tolerances for parametric search of the Fréchet distance.
+        Relative and absolute tolerances for parametric search of the feasible distance.
     event_rel_tol, event_abs_tol : double
         Relative and absolute tolerances to determine realizing events.
 
@@ -156,6 +162,12 @@ def significant_events(
     -----
     This function implements Buchin et al.'s algorithm [1]_, except that backtracking is
     used to extract significant events. Plus, the "type-A" events are included.
+
+    The parametric search for the feasible distance terminates if the upper boundary
+    ``a`` and the lower boundary ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
+
+    An event is considered to be realizing if its value `e` and the realizing distnace
+    `d` satisfy: ``e - d <= max(rel_tol * d, abs_tol)``.
 
     References
     ----------
@@ -254,13 +266,13 @@ def fd_matching(
     Parameters
     ----------
     P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
     Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     param : {'arc-length', 'vertex'}
-        Type of parametrization of *matching*.
+        Parametrization of matching.
     rel_tol, abs_tol : double
         Relative and absolute tolerances for parametric search of the Fréchet distance.
     event_rel_tol, event_abs_tol : double
@@ -269,7 +281,8 @@ def fd_matching(
     Returns
     -------
     dist : double
-        The (continuous) Fréchet distance between *P* and *Q*.
+        The (continuous) Fréchet distance between *P* and *Q*, NaN if any vertex
+        is empty.
     matching : ndarray
         Vertices of a locally correct Fréchet matching in parameter space.
 
@@ -277,6 +290,12 @@ def fd_matching(
     -----
     This function implements Buchin et al.'s algorithm [1]_, except that backtracking is
     used to extract significant events.
+
+    The parametric search for the feasible distance terminates if the upper boundary
+    ``a`` and the lower boundary ``b`` satisfy: ``a - b <= max(rel_tol * a, abs_tol)``.
+
+    An event is considered to be realizing if its value `e` and the realizing distnace
+    `d` satisfy: ``e - d <= max(rel_tol * d, abs_tol)``.
 
     References
     ----------
@@ -330,16 +349,16 @@ def dfd(P, Q):
     where :math:`C` is a nondecreasing coupling over
     :math:`\{0, ..., n\} \times \{0, ..., m\}`, starting from :math:`(0, 0)` and
     ending with :math:`(n, m)`. :math:`\lVert \cdot \rVert` is the underlying
-    metric, which is the Euclidean metric in this implementation.
+    metric, which is the Euclidean metric in this function.
 
     Parameters
     ----------
     P : ndarray
-        An :math:`p` by :math:`n` array of :math:`p` points in an
-        :math:`n`-dimensional space.
+        A :math:`p` by :math:`n` array of :math:`p` points in an :math:`n`-dimensional
+        space.
     Q : ndarray
-        An :math:`q` by :math:`n` array of :math:`q` points in an
-        :math:`n`-dimensional space.
+        A :math:`q` by :math:`n` array of :math:`q` points in an :math:`n`-dimensional
+        space.
 
     Returns
     -------
@@ -349,11 +368,11 @@ def dfd(P, Q):
 
     Notes
     -----
-    This function implements Eiter and Mannila's algorithm [#]_.
+    This function implements Eiter and Mannila's algorithm [1]_.
 
     References
     ----------
-    .. [#] Eiter, T., & Mannila, H. (1994). Computing discrete Fréchet distance.
+    .. [1] Eiter, T., & Mannila, H. (1994). Computing discrete Fréchet distance.
 
     Examples
     --------

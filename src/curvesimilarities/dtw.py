@@ -29,22 +29,23 @@ def dtw(P, Q, dist="euclidean"):
 
     .. math::
 
-        \min_{C} \sum_{(i, j) \in C} dist\left(P_i, Q_j\right),
+        \min_{C} \sum_{(i, j) \in C} \lVert P_i - Q_j \rVert,
 
     where :math:`C` is a nondecreasing coupling over
     :math:`\{0, ..., n\} \times \{0, ..., m\}`, starting from :math:`(0, 0)` and
-    ending with :math:`(n, m)`.
+    ending with :math:`(n, m)`. :math:`\lVert \cdot \rVert` is the underlying
+    metric.
 
     Parameters
     ----------
     P : ndarray
-        A :math:`p` by :math:`n` array of :math:`p` points in an
-        :math:`n`-dimensional space.
+        A :math:`p` by :math:`n` array of :math:`p` points in an :math:`n`-dimensional
+        space.
     Q : ndarray
-        A :math:`q` by :math:`n` array of :math:`q` points in an
-        :math:`n`-dimensional space.
+        A :math:`q` by :math:`n` array of :math:`q` points in an :math:`n`-dimensional
+        space.
     dist : {'euclidean', 'squared_euclidean'}
-        Type of :math:`dist`. Refer to the Notes section for more information.
+        Type of underlying metric. Refer to the Notes section for more information.
 
     Returns
     -------
@@ -52,34 +53,29 @@ def dtw(P, Q, dist="euclidean"):
         The dynamic time warping distance between *P* and *Q*, NaN if any
         array of points is empty.
 
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
     See Also
     --------
-    dtw_owp : Dynamic time warping distance with optimal warping path.
+    dtw_owp
 
     Notes
     -----
-    This function implements the algorithm described by Senin [#]_.
+    This function implements the algorithm described by Senin [1]_.
 
-    The following functions are available for :math:`dist`:
+    The following functions are available for :math:`\lVert \cdot \rVert`:
 
     1. Euclidean distance
         .. math::
 
-            dist\left(p, q\right) = \lVert p - q \rVert_2
+            \lVert p - q \rVert = \lVert p - q \rVert_2
 
     2. Squared Euclidean distance
         .. math::
 
-            dist\left(p, q\right) = \lVert p - q \rVert_2^2
+            \lVert p - q \rVert = \lVert p - q \rVert_2^2
 
     References
     ----------
-    .. [#] Senin, P. (2008). Dynamic time warping algorithm review. Information
+    .. [1] Senin, P. (2008). Dynamic time warping algorithm review. Information
         and Computer Science Department University of Hawaii at Manoa Honolulu,
         USA, 855(1-23), 40.
 
@@ -105,13 +101,13 @@ def dtw_owp(P, Q, dist="euclidean"):
     Parameters
     ----------
     P : ndarray
-        A :math:`p` by :math:`n` array of :math:`p` points in an
-        :math:`n`-dimensional space.
+        A :math:`p` by :math:`n` array of :math:`p` points in an :math:`n`-dimensional
+        space.
     Q : ndarray
-        A :math:`q` by :math:`n` array of :math:`q` points in an
-        :math:`n`-dimensional space.
+        A :math:`q` by :math:`n` array of :math:`q` points in an :math:`n`-dimensional
+        space.
     dist : {'euclidean', 'squared_euclidean'}
-        Type of :math:`dist`. Refer to :func:`dtw`.
+        Type of underlying metric. Refer to :func:`dtw`.
 
     Returns
     -------
@@ -122,25 +118,16 @@ def dtw_owp(P, Q, dist="euclidean"):
         Indices of *P* and *Q* for optimal warping path, empty if any array of points
         empty.
 
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
     Examples
     --------
     >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
     >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
-    >>> from curvesimilarities.util import sample_polyline
-    >>> P_len = np.sum(np.linalg.norm(np.diff(P, axis=0), axis=-1))
-    >>> P_pts = sample_polyline(P, np.linspace(P_len, 0, 30))
-    >>> Q_len = np.sum(np.linalg.norm(np.diff(Q, axis=0), axis=-1))
-    >>> Q_pts = sample_polyline(Q, np.linspace(Q_len, 0, 30))
-    >>> _, owp = dtw_owp(P_pts, Q_pts)
-    >>> lines = np.array([P_pts[owp[:, 0]], Q_pts[owp[:, 1]]])
+    >>> _, owp = dtw_owp(P, Q)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-    >>> plt.plot(*P_pts.T, "x"); plt.plot(*Q_pts.T, "x")  # doctest: +SKIP
-    >>> plt.plot(*lines.transpose(2, 0, 1), "--", color="gray")  # doctest: +SKIP
+    >>> x, y = np.meshgrid(np.arange(len(P)), np.arange(len(Q)))
+    >>> plt.plot(*np.vstack([x.ravel(), y.ravel()]), "x")  # doctest: +SKIP
+    >>> plt.plot(*owp.T, "o")  # doctest: +SKIP
+    >>> plt.axis("equal")  # doctest: +SKIP
     """
     acm = _dtw_acm(P.astype(np.float64), Q.astype(np.float64), dist)
     if acm.size == 0:

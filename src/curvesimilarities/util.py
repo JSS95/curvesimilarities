@@ -17,10 +17,10 @@ def parameter_space(P, Q, p_num, q_num):
     Parameters
     ----------
     P : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
     Q : array_like
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+        A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     p_num, q_num : int
         Number of sample points in `P` and `Q`, respectively.
@@ -88,6 +88,18 @@ def matching_pairs(P, Q, path, sample_num):
     -------
     ndarray
         A :math:`n` by :math:`2` by `sample_num` array of point pairs in curve space.
+
+    Examples
+    --------
+    >>> from curvesimilarities import ifd_owp
+    >>> from curvesimilarities.util import matching_pairs
+    >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
+    >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
+    >>> _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
+    >>> pairs = matching_pairs(P, Q, path, 50)
+    >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+    >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
+    >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP
     """
     path_len = np.sum(np.linalg.norm(np.diff(path, axis=0), axis=-1))
     path_pts = sample_polyline(path, np.linspace(0, path_len, sample_num))
@@ -102,19 +114,21 @@ def sample_polyline(vert, param):
     Parameters
     ----------
     vert : array_like
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
     param : array_like
-        An 1-D array of :math:`q` parameters for sampled points.
-        Natural parametrization is used, i.e., the polygonal curve
-        is parametrized by its arc length.
-        Parameters smaller than :math:`0` or larger than the total
-        arc length are clipped to the nearest valid value.
+        An 1-D array of :math:`q` parameters for sampled points, using arc-length
+        parametrization.
 
     Returns
     -------
     array_like
         A :math:`q` by :math:`n` array of sampled points.
+
+    Notes
+    -----
+    Parameters smaller than :math:`0` or larger than the total arc length are clipped to
+    the nearest valid value.
     """
     vert = np.asarray(vert)
 

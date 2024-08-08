@@ -38,11 +38,11 @@ def ifd(P, Q, delta, dist="euclidean"):
 
     Parameters
     ----------
-    P : ndarray
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : ndarray
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     delta : double
         Maximum length of edges between Steiner points.
@@ -56,18 +56,13 @@ def ifd(P, Q, delta, dist="euclidean"):
         The integral Fréchet distance between *P* and *Q*, NaN if any vertice
         is empty or both vertices consist of a single point.
 
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
     See Also
     --------
-    ifd_owp : Integral Fréchet distance with optimal warping path.
+    ifd_owp
 
     Notes
     -----
-    This function implements the algorithm of Brankovic et al [#]_.
+    This function implements the algorithm of Brankovic et al [1]_.
 
     The following functions are available for :math:`dist`:
 
@@ -87,7 +82,7 @@ def ifd(P, Q, delta, dist="euclidean"):
 
     References
     ----------
-    .. [#] Brankovic, M., et al. "(k, l)-Medians Clustering of Trajectories Using
+    .. [1] Brankovic, M., et al. "(k, l)-Medians Clustering of Trajectories Using
        Continuous Dynamic Time Warping." Proceedings of the 28th International
        Conference on Advances in Geographic Information Systems. 2020.
 
@@ -111,11 +106,11 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
 
     Parameters
     ----------
-    P : ndarray
-        A :math:`p` by :math:`n` array of :math:`p` vertices in an
+    P : array_like
+        A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : ndarray
-        A :math:`q` by :math:`n` array of :math:`q` vertices in an
+    Q : array_like
+        A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     delta : double
         Maximum length of edges between Steiner points. Refer to :func:`ifd`.
@@ -131,21 +126,16 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
         Optimal warping path, empty if any vertice is empty or both vertices
         consist of a single point.
 
-    Raises
-    ------
-    ValueError
-        If *P* and *Q* are not 2-dimensional arrays with same number of columns.
-
     Examples
     --------
+    >>> from curvesimilarities.util import parameter_space
     >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
     >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
     >>> _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
-    >>> from curvesimilarities.util import matching_pairs
-    >>> pairs = matching_pairs(P, Q, path, 100)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-    >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
-    >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP
+    >>> weight, p, q, _, _ = parameter_space(P, Q, 200, 100)
+    >>> plt.pcolormesh(p, q, weight.T, cmap="gray")  # doctest: +SKIP
+    >>> plt.plot(*path.T, "--")  # doctest: +SKIP
     """
     P, Q = P.astype(np.float64), Q.astype(np.float64)
     B, L = _ifd_acm(P, Q, delta, dist)
