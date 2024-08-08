@@ -218,6 +218,9 @@ def index2arclength(curve, param):
     param : ndarray
         Index based parameters.
     """
+    orig_shape = param.shape
+    param = param.reshape(-1)
+
     len_cumsum = np.empty(len(curve), dtype=np.float64)
     len_cumsum[0] = 0
     for i in range(1, len(curve)):
@@ -231,4 +234,4 @@ def index2arclength(curve, param):
             ret[i] = len_cumsum[n]
         else:
             ret[i] = len_cumsum[n] + t * (len_cumsum[n + 1] - len_cumsum[n])
-    return ret
+    return ret.reshape(orig_shape)

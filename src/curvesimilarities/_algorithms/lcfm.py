@@ -132,36 +132,36 @@ def _significant_events(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
     if not (BR[-1, -1, 1] == 1 or LR[-1, -1, 1] == 1):  # compute one more last time
         BF, LF, BR, LR = _feasible_boundaries(P, Q, eps)
 
-    # STEP 2. Compute passable boundaries.
+    # STEP 2. Compute passable boundaries by backtracking.
     BP, LP = _passable_boundaries(BR, LR, BR, LR)
 
     # STEP 3. Determine realizing set with passable boundaries.
     # By using passable boundaries instead of reachable boundaries, insignificant events
     # are automatically excluded.
-    BE, LE, B_err, L_err = _realizing_set(
+    BE, LE, BE_val, LE_val, BE_err, LE_err = _realizing_set(
         P, Q, eps, BF, LF, BP, LP, event_rel_tol, event_abs_tol
     )
 
-    return eps, BE, LE, B_err, L_err
+    return eps, BE, LE, BE_val, LE_val, BE_err, LE_err
 
 
 @njit(cache=True)
 def _e_r(P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol):
-    eps, BE, LE, B_err, L_err = _significant_events(
+    eps, BE, LE, _, _, BE_err, LE_err = _significant_events(
         P, Q, rel_tol, abs_tol, event_rel_tol, event_abs_tol
     )
 
     # Select the most significant event.
     if len(LE) == 0:
         e_r_horiz = False
-        B_minerr_idx = np.argmin(B_err)
+        B_minerr_idx = np.argmin(BE_err)
     elif len(BE) == 0:
         e_r_horiz = True
-        L_minerr_idx = np.argmin(L_err)
+        L_minerr_idx = np.argmin(LE_err)
     else:
-        B_minerr_idx = np.argmin(B_err)
-        L_minerr_idx = np.argmin(L_err)
-        if B_err[B_minerr_idx] < L_err[L_minerr_idx]:
+        B_minerr_idx = np.argmin(BE_err)
+        L_minerr_idx = np.argmin(LE_err)
+        if BE_err[B_minerr_idx] < LE_err[L_minerr_idx]:
             e_r_horiz = False
         else:
             e_r_horiz = True
@@ -243,11 +243,15 @@ def _passable_boundaries(BR, LR, BP_out, LP_out):
 
 @njit(cache=True)
 def _realizing_set(P, Q, eps, BF, LF, BR, LR, rel_tol, abs_tol):
-    L_E_minerr, L_E_closest_event = INF, np.empty((1, 3), dtype=np.float64)  # Fallback
-    # each row of L_E = i0, i1, j + t
-    L_E = np.empty((LR.shape[0] * LR.shape[1], 3), dtype=np.float64)
-    L_E_err = np.empty(LR.shape[0] * LR.shape[1], dtype=np.float64)
+    # Each row of LE = i0, i1, j + t
+    LE = np.empty((LR.shape[0] * LR.shape[1], 3), dtype=np.float64)
+    LE_val = np.empty(LR.shape[0] * LR.shape[1], dtype=np.float64)
+    LE_err = np.empty(LR.shape[0] * LR.shape[1], dtype=np.float64)
     count = 0
+    # Fallback variables
+    fb_LE = np.empty((1, 3), dtype=np.float64)
+    fb_LE_val = np.empty(1, dtype=np.float64)
+    fb_LE_err = INF
     for j in range(LR.shape[1]):
         g_star = 0
         for i in range(1, LR.shape[0] - 1):  # skip event ending on rightmost boundary
@@ -261,10 +265,6 @@ def _realizing_set(P, Q, eps, BF, LF, BR, LR, rel_tol, abs_tol):
                 continue
 
             err = abs(eps - d)
-            # Keep minimum critical value in case L_E is empty by incorrect tols.
-            if err < L_E_minerr:
-                L_E_minerr = err
-                L_E_closest_event[0, :] = [g_star, i, j + t]
             if j < LR.shape[1] - 1 and LR[i, j, 0] == 1 and LR[i, j + 1, 0] == 0:
                 is_singleton = False
             elif j > 0 and LR[i, j, 1] == 0 and LR[i, j - 1, 1] == 1:
@@ -274,19 +274,33 @@ def _realizing_set(P, Q, eps, BF, LF, BR, LR, rel_tol, abs_tol):
             else:  # Singleton detection may have failed due to floating point error
                 is_realizing = err <= max(rel_tol * max(abs(eps), abs(d)), abs_tol)
                 is_singleton = is_realizing & ~np.isnan(LR[i, j, 0])
+
             if is_singleton:
-                L_E[count] = [g_star, i, j + t]
-                L_E_err[count] = err
+                LE[count] = [g_star, i, j + t]
+                LE_val[count] = d
+                LE_err[count] = err
                 count += 1
                 g_star = i
-    L_E = L_E[:count]
-    L_E_err = L_E_err[:count]
 
-    B_E_minerr, B_E_closest_event = INF, np.empty((1, 3), dtype=np.float64)  # Fallback
-    # each row of B_E = i + t, j0, j1
-    B_E = np.empty((BR.shape[0] * BR.shape[1], 3), dtype=np.float64)
-    B_E_err = np.empty(BR.shape[0] * BR.shape[1], dtype=np.float64)
+            # Update fallback
+            if err < fb_LE_err:
+                fb_LE[0, :] = [g_star, i, j + t]
+                fb_LE_val[0] = d
+                fb_LE_err = err
+
+    LE = LE[:count]
+    LE_val = LE_val[:count]
+    LE_err = LE_err[:count]
+
+    # Each row of BE = i + t, j0, j1
+    BE = np.empty((BR.shape[0] * BR.shape[1], 3), dtype=np.float64)
+    BE_val = np.empty(LR.shape[0] * LR.shape[1], dtype=np.float64)
+    BE_err = np.empty(BR.shape[0] * BR.shape[1], dtype=np.float64)
     count = 0
+    # Fallback variables
+    fb_BE = np.empty((1, 3), dtype=np.float64)
+    fb_BE_val = np.empty(1, dtype=np.float64)
+    fb_BE_err = INF
     for i in range(BR.shape[0]):
         g_star = 0
         for j in range(1, BR.shape[1] - 1):  # skip event ending on uppermost boundary
@@ -300,10 +314,6 @@ def _realizing_set(P, Q, eps, BF, LF, BR, LR, rel_tol, abs_tol):
                 continue
 
             err = abs(eps - d)
-            # Keep minimum critical value in case B_E is empty by incorrect tols.
-            if err < B_E_minerr:
-                B_E_minerr = err
-                B_E_closest_event[0, :] = [g_star, i, j + t]
             if i < BR.shape[0] - 1 and BR[i, j, 0] == 1 and BR[i + 1, j, 0] == 0:
                 is_singleton = False
             elif i > 0 and BR[i, j, 1] == 0 and BR[i - 1, j, 1] == 1:
@@ -313,26 +323,38 @@ def _realizing_set(P, Q, eps, BF, LF, BR, LR, rel_tol, abs_tol):
             else:  # Singleton detection may have failed due to floating point error
                 is_realizing = err <= max(rel_tol * max(abs(eps), abs(d)), abs_tol)
                 is_singleton = is_realizing & ~np.isnan(BR[i, j, 0])
+
             if is_singleton:
-                B_E[count] = [i + t, g_star, j]
-                B_E_err[count] = err
+                BE[count] = [i + t, g_star, j]
+                BE_val[count] = d
+                BE_err[count] = err
                 count += 1
                 g_star = j
-    B_E = B_E[:count]
-    B_E_err = B_E_err[:count]
 
-    if len(B_E) == 0 and len(L_E) == 0:
+            # Update fallback
+            if err < fb_BE_err:
+                fb_BE[0, :] = [g_star, i, j + t]
+                fb_BE_val[0] = d
+                fb_BE_err = err
+
+    BE = BE[:count]
+    BE_val = BE_val[:count]
+    BE_err = BE_err[:count]
+
+    if len(BE) == 0 and len(LE) == 0:
         # Realizing event not detected because of too harsh tolerances.
         # Since at least one realizing event must exist, we regard the event whose value
         # is the closest to epsilon as the only realizing event.
-        if B_E_minerr < L_E_minerr:
-            B_E = B_E_closest_event
-            B_E_err = np.array((B_E_minerr,), dtype=np.float64)
+        if fb_BE_err < fb_LE_err:
+            BE = fb_BE
+            BE_val = fb_BE_val
+            BE_err = np.array((fb_BE_err,), dtype=np.float64)
         else:
-            L_E = L_E_closest_event
-            L_E_err = np.array((L_E_minerr,), dtype=np.float64)
+            LE = fb_LE
+            LE_val = fb_LE_val
+            LE_err = np.array((fb_LE_err,), dtype=np.float64)
 
-    return B_E, L_E, B_E_err, L_E_err
+    return BE, LE, BE_val, LE_val, BE_err, LE_err
 
 
 @njit(cache=True)
