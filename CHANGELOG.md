@@ -15,9 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Significant events in Fréchet distance `significant_events()`.
 - Locally correct Fréchet matching `fd_matching()`.
 
+### Changed
+
+**Utility (`curvesimilarities.util`)**
+
+- `curve_matching()` is renamed to `matching_pairs()`.
+
 ### Removed
 
+**Fréchet distance (`curvesimilarities.frechet`)**
+
 - `fd_params()` is removed. Use `significant_events()` instead.
+
+**Utility (`curvesimilarities.util`)**
+
+- `refine_polyline()` is removed.
 
 ## [0.3.0] - 2024-07-26
 

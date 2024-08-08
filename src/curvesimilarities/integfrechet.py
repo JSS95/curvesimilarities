@@ -141,8 +141,8 @@ def ifd_owp(P, Q, delta, dist="euclidean"):
     >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
     >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
     >>> _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
-    >>> from curvesimilarities.util import curve_matching
-    >>> pairs = curve_matching(P, Q, path, 100)
+    >>> from curvesimilarities.util import matching_pairs
+    >>> pairs = matching_pairs(P, Q, path, 100)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
     >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
     >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP

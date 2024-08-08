@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from curvesimilarities import ifd_owp
-from curvesimilarities.util import curve_matching, parameter_space
+from curvesimilarities.util import matching_pairs, parameter_space
 
 P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
 Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
 _, path = ifd_owp(P, Q, 0.1, "squared_euclidean")
 weight, p, q, p_vert, q_vert = parameter_space(P, Q, 200, 100)
-pairs = curve_matching(P, Q, path, 50)
+pairs = matching_pairs(P, Q, path, 50)
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 

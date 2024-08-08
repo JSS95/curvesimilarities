@@ -287,11 +287,11 @@ def fd_matching(
     Examples
     --------
     >>> from curvesimilarities.frechet import fd_matching
-    >>> from curvesimilarities.util import curve_matching
+    >>> from curvesimilarities.util import matching_pairs
     >>> P = np.array([[0, 0], [2, 2], [4, 2], [4, 4], [2, 1], [5, 1], [7, 2]])
     >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
     >>> _, path = fd_matching(P, Q)
-    >>> pairs = curve_matching(P, Q, path, 100)
+    >>> pairs = matching_pairs(P, Q, path, 100)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
     >>> plt.plot(*P.T); plt.plot(*Q.T)  # doctest: +SKIP
     >>> plt.plot(*pairs, "--", color="gray")  # doctest: +SKIP
