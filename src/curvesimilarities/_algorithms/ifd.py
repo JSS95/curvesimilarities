@@ -345,14 +345,15 @@ def _cell_owc(s, t, P1, Q1, u, v, b, dist_type):
 
 
 @njit(cache=True)
-def _cell_owp(s, t, P1, Q1, u, v, b):
-    P_s = P1 + u * s[0]
-    P_t = P1 + u * t[0]
-    Q_s = Q1 + v * s[1]
-    Q_t = Q1 + v * t[1]
+def _cell_owp(p_n, q_n, s_idx, t_idx, delta_P, delta_Q, b):
+    W = delta_P * (p_n - 1)
+    H = delta_P * (q_n - 1)
+
+    s = [s_idx[0] * delta_P, s_idx[1] * delta_Q]
+    t = [t_idx[0] * delta_P, t_idx[1] * delta_Q]
 
     verts = np.empty((4, 2), dtype=np.float64)
-    verts[0] = s
+    verts[0] = [s_idx[0] / (p_n - 1), s_idx[1] / (q_n - 1)]
     count = 1
 
     if s[1] > s[0] + b:
@@ -365,46 +366,41 @@ def _cell_owp(s, t, P1, Q1, u, v, b):
         ct_x, ct_y = t[0], t[0] + b
 
     if cs_x < ct_x:  # pass through lm
-        P_cs = P1 + u * cs_x
-        P_ct = P1 + u * ct_x
-        Q_cs = Q1 + v * cs_y
-        Q_ct = Q1 + v * ct_y
-
         if s[1] > s[0] + b:  # right
-            l0_zero = np.all(P_s == P_cs)
+            l0_zero = s[0] == cs_x
         else:  # up
-            l0_zero = np.all(Q_s == Q_cs)
-        l1_zero = np.all(P_cs == P_ct) and np.all(Q_cs == Q_ct)
+            l0_zero = s[1] == cs_y
+        l1_zero = cs_x == ct_x and cs_y == ct_y
         if t[1] > t[0] + b:  # up
-            l2_zero = np.all(Q_ct == Q_t)
+            l2_zero = ct_y == t[1]
         else:  # right
-            l2_zero = np.all(P_ct == P_t)
+            l2_zero = ct_x == t[0]
 
         if not l0_zero:
-            verts[count] = (cs_x, cs_y)
+            verts[count] = [cs_x / W, cs_y / H]
             count += 1
         if not l1_zero:
-            verts[count] = (ct_x, ct_y)
+            verts[count] = [ct_x / W, ct_y / H]
             count += 1
         if not l2_zero:
-            verts[count] = t
+            verts[count] = [t_idx[0] / (p_n - 1), t_idx[1] / (q_n - 1)]
             count += 1
 
     else:  # pass c'
         if s[1] > s[0] + b:  # right -> up
-            l0_zero = np.all(P_s == P_t)
-            l1_zero = np.all(Q_s == Q_t)
-            c_prime = (t[0], s[1])
+            l0_zero = s_idx[0] == t_idx[0]
+            l1_zero = s_idx[1] == t_idx[1]
+            c_prime = [t_idx[0] / (p_n - 1), s_idx[1] / (q_n - 1)]
         else:  # up -> right
-            l0_zero = np.all(Q_s == Q_t)
-            l1_zero = np.all(P_s == P_t)
-            c_prime = (s[0], t[1])
+            l0_zero = s_idx[1] == t_idx[1]
+            l1_zero = s_idx[0] == t_idx[0]
+            c_prime = [s_idx[0] / (p_n - 1), t_idx[1] / (q_n - 1)]
 
         if not l0_zero:
             verts[count] = c_prime
             count += 1
         if not l1_zero:
-            verts[count] = t
+            verts[count] = [t_idx[0] / (p_n - 1), t_idx[1] / (q_n - 1)]
             count += 1
     return verts, count
 
@@ -468,17 +464,8 @@ def _ifd_owp(P, Q, B, L, delta, dist_type):
     PATH = np.empty((MAX_PATH_VERT_NUM, 2), dtype=np.float64)
     COUNT = 0
 
-    P_params = np.empty(len(P), dtype=np.float64)
-    P_params[0] = 0
-    for i in range(1, len(P)):
-        P_params[i] = P_params[i - 1] + np.linalg.norm(P[i] - P[i - 1])
-    Q_params = np.empty(len(Q), dtype=np.float64)
-    Q_params[0] = 0
-    for j in range(1, len(Q)):
-        Q_params[j] = Q_params[j - 1] + np.linalg.norm(Q[j] - Q[j - 1])
-
     if p > 0 and q > 0:
-        PATH[0] = (P_params[p - 1], Q_params[q - 1])
+        PATH[0] = [p - 1, q - 1]
         COUNT += 1
 
     i, j = p - 2, q - 2  # cell indices
@@ -492,8 +479,8 @@ def _ifd_owp(P, Q, B, L, delta, dist_type):
             t_idx, p_pts, q_pts, p_costs, q_costs, i == 0, j == 0, dist_type
         )
         path = path[: count - 1]
-        path[:, 0] += P_params[i]
-        path[:, 1] += Q_params[j]
+        path[:, 0] += i
+        path[:, 1] += j
         for i_ in range(count - 1):
             PATH[COUNT + i_] = path[count - i_ - 2]
         COUNT += count - 1
@@ -561,8 +548,6 @@ def _cell_path(
         s_idx = [p_min_idx, 0]
     else:
         s_idx = [0, q_min_idx]
-    s[0] = delta_P * s_idx[0]
-    s[1] = delta_Q * s_idx[1]
-    path, count = _cell_owp(s, t, P1, Q1, u, v, b)
+    path, count = _cell_owp(len(p_pts), len(q_pts), s_idx, t_idx, delta_P, delta_Q, b)
 
     return s_idx, path, count

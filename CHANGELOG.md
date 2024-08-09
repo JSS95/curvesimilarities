@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `curve_matching()` is renamed to `matching_pairs()`.
 
+**Integral Fréchet distance (`curvesimilarities.integfrechet`)**
+
+- `ifd_owp()` now take `param` argument to specify the parametrization type.
+
 ### Removed
 
 **Fréchet distance (`curvesimilarities.frechet`)**
