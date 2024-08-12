@@ -108,39 +108,56 @@ def matching_pairs(P, Q, path, sample_num):
     return np.stack([P_pts, Q_pts]).transpose(2, 0, 1)
 
 
-def sample_polyline(vert, param):
+@njit(cache=True)
+def sample_polyline(vert, param, param_type="arc-length"):
     """Sample points from a polyline.
 
     Parameters
     ----------
-    vert : array_like
+    vert : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
     param : array_like
         An 1-D array of :math:`q` parameters for sampled points, using arc-length
         parametrization.
+    param_type : {'arc-length', 'vertex'}
+        Parametrization type of *param*.
 
     Returns
     -------
-    array_like
+    ndarray
         A :math:`q` by :math:`n` array of sampled points.
-
-    Notes
-    -----
-    Parameters smaller than :math:`0` or larger than the total arc length are clipped to
-    the nearest valid value.
     """
-    vert = np.asarray(vert)
+    edges = (vert[1:] - vert[:-1]).astype(np.float64)
+    edges_len = np.empty(len(edges), dtype=np.float64)
+    for i in range(len(edges_len)):
+        edges_len[i] = np.linalg.norm(edges[i])
+    ret = np.empty((len(param), vert.shape[1]), dtype=np.float64)
 
-    seg_vec = np.diff(vert, axis=0)
-    seg_len = np.linalg.norm(seg_vec, axis=-1)
-    vert_param = np.insert(np.cumsum(seg_len), 0, 0)
-    param = np.clip(param, vert_param[0], vert_param[-1])
-
-    pt_vert_idx = np.clip(np.searchsorted(vert_param, param) - 1, 0, len(vert) - 2)
-    t = param - vert_param[pt_vert_idx]
-    seg_unitvec = seg_vec / seg_len[..., np.newaxis]
-    return vert[pt_vert_idx] + t[..., np.newaxis] * seg_unitvec[pt_vert_idx]
+    if param_type == "arc-length":
+        len_cumsum = np.empty(len(vert), dtype=np.float64)
+        len_cumsum[0] = 0
+        for i in range(1, len(len_cumsum)):
+            len_cumsum[i] = len_cumsum[i - 1] + edges_len[i - 1]
+        pt_vert_idx = np.clip(np.searchsorted(len_cumsum, param) - 1, 0, None)
+        for i in range(len(ret)):
+            n = pt_vert_idx[i]
+            t = param[i] - len_cumsum[n]
+            if t == 0:
+                ret[i] = vert[n]
+            else:
+                ret[i] = vert[n] + (edges[n] / edges_len[n]) * t
+    elif param_type == "vertex":
+        for i in range(len(ret)):
+            n = int(param[i])
+            t = param[i] - n
+            if t == 0:
+                ret[i] = vert[n]
+            else:
+                ret[i] = vert[n] + edges[n] * t
+    else:
+        raise ValueError("Unknown option for parametrization.")
+    return ret
 
 
 @njit(cache=True)

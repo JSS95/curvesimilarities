@@ -20,10 +20,10 @@ def Q_vert():
 @pytest.fixture
 def P_pts():
     param = np.linspace(0, np.sum(np.linalg.norm(np.diff(P_VERT, axis=0), axis=-1)), 10)
-    return sample_polyline(P_VERT, param)
+    return sample_polyline(np.array(P_VERT), param)
 
 
 @pytest.fixture
 def Q_pts():
     param = np.linspace(0, np.sum(np.linalg.norm(np.diff(Q_VERT, axis=0), axis=-1)), 10)
-    return sample_polyline(Q_VERT, param)
+    return sample_polyline(np.array(Q_VERT), param)
