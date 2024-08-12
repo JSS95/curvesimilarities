@@ -417,9 +417,9 @@ def dfd_idxs(P, Q):
     >>> Q = np.array([[2, 0], [1, 3], [5, 3], [5, 2], [7, 3]])
     >>> from curvesimilarities.util import sample_polyline
     >>> P_len = np.sum(np.linalg.norm(np.diff(P, axis=0), axis=-1))
-    >>> P_pts = sample_polyline(P, np.linspace(P_len, 0, 30))
+    >>> P_pts = sample_polyline(P, np.linspace(0, P_len, 30))
     >>> Q_len = np.sum(np.linalg.norm(np.diff(Q, axis=0), axis=-1))
-    >>> Q_pts = sample_polyline(Q, np.linspace(Q_len, 0, 30))
+    >>> Q_pts = sample_polyline(Q, np.linspace(0, Q_len, 30))
     >>> _, idx0, idx1 = dfd_idxs(P_pts, Q_pts)
     >>> import matplotlib.pyplot as plt  # doctest: +SKIP
     >>> plt.plot(*P_pts.T, "x"); plt.plot(*Q_pts.T, "x")  # doctest: +SKIP
