@@ -102,7 +102,7 @@ def ifd(P, Q, delta, dist="euclidean"):
 
 
 @njit(cache=True)
-def ifd_owp(P, Q, delta, dist="euclidean", param="arc-length"):
+def ifd_owp(P, Q, delta, dist="euclidean", param_type="arc-length"):
     """Integral Fréchet distance and its optimal warping path.
 
     Parameters
@@ -117,7 +117,7 @@ def ifd_owp(P, Q, delta, dist="euclidean", param="arc-length"):
         Maximum length of edges between Steiner points. Refer to :func:`ifd`.
     dist : {'euclidean', 'squared_euclidean'}
         Type of :math:`dist`. Refer to :func:`ifd`.
-    param : {'arc-length', 'vertex'}
+    param_type : {'arc-length', 'vertex'}
         Parametrization of matching.
 
     Returns
@@ -148,14 +148,14 @@ def ifd_owp(P, Q, delta, dist="euclidean", param="arc-length"):
         ifd = L[-1, -1]
     path = _ifd_owp(P, Q, B, L, delta, dist)[::-1]
 
-    if param == "arc-length":
+    if param_type == "arc-length":
         path = np.stack(
             (
                 index2arclength(P, path[:, 0].copy()),
                 index2arclength(Q, path[:, 1].copy()),
             )
         ).T
-    elif param == "vertex":
+    elif param_type == "vertex":
         pass
     else:
         raise ValueError("Unknown option for parametrization.")

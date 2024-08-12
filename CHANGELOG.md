@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+**Fréchet distance (`curvesimilarities.frechet`)**
+
+- `significant_events()` take *param_type* argument instead of *param*.
+- `fd_matching()` take *param_type* argument instead of *param*.
+
+**Integral Fréchet distance (`curvesimilarities.integfrechet`)**
+
+- `ifd_owp()` take *param_type* argument instead of *param*.
+
 **Utility (`curvesimilarities.util`)**
 
 - `sample_polyline()` no longer clips the parameters into the valid range.
 - `sample_polyline()` is now numba-compiled and strictly takes numpy array as *vert* argument.
-- `sample_polyline()` now takes `param_type` argument to specify the parametrization of *param* argument.
+- `sample_polyline()` now takes *param_type* argument to specify the parametrization of *param* argument.
 
 ## [0.4.0a1] - 2024-08-09
 
