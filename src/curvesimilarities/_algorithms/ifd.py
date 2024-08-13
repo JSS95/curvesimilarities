@@ -347,7 +347,7 @@ def _cell_owc(s, t, P1, Q1, u, v, b, dist_type):
 @njit(cache=True)
 def _cell_owp(p_n, q_n, s_idx, t_idx, delta_P, delta_Q, b):
     W = delta_P * (p_n - 1)
-    H = delta_P * (q_n - 1)
+    H = delta_Q * (q_n - 1)
 
     s = [s_idx[0] * delta_P, s_idx[1] * delta_Q]
     t = [t_idx[0] * delta_P, t_idx[1] * delta_Q]
@@ -377,7 +377,7 @@ def _cell_owp(p_n, q_n, s_idx, t_idx, delta_P, delta_Q, b):
             l2_zero = ct_x == t[0]
 
         if not l0_zero:
-            verts[count] = [cs_x / W, cs_y / H]
+            verts[count] = [cs_x / W, cs_y / H]  # these are always in [0, 1]
             count += 1
         if not l1_zero:
             verts[count] = [ct_x / W, ct_y / H]
