@@ -333,7 +333,7 @@ def _realizing_set(P, Q, eps, BF, LF, BR, LR, rel_tol, abs_tol):
 
             # Update fallback
             if err < fb_BE_err:
-                fb_BE[0, :] = [g_star, i, j + t]
+                fb_BE[0, :] = [i + t, g_star, j]
                 fb_BE_val[0] = d
                 fb_BE_err = err
 
