@@ -166,7 +166,7 @@ def index2arclength(curve, param):
 
     Parameters
     ----------
-    curve : array_like
+    curve : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices in an
         :math:`n`-dimensional space.
     param : ndarray

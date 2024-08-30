@@ -41,10 +41,10 @@ def fd(P, Q, rel_tol=0.0, abs_tol=float(EPSILON)):
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     rel_tol, abs_tol : double
@@ -90,10 +90,10 @@ def decision_problem(P, Q, epsilon):
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     epsilon : double
@@ -136,10 +136,10 @@ def significant_events(
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     param_type : {'arc-length', 'vertex'}
@@ -265,10 +265,10 @@ def fd_matching(
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     param_type : {'arc-length', 'vertex'}

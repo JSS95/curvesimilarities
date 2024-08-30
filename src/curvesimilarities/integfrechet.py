@@ -39,10 +39,10 @@ def ifd(P, Q, delta, dist="euclidean"):
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     delta : double
@@ -107,10 +107,10 @@ def ifd_owp(P, Q, delta, dist="euclidean", param_type="arc-length"):
 
     Parameters
     ----------
-    P : array_like
+    P : ndarray
         A :math:`p` by :math:`n` array of :math:`p` vertices of a polyline in an
         :math:`n`-dimensional space.
-    Q : array_like
+    Q : ndarray
         A :math:`q` by :math:`n` array of :math:`q` vertices of a polyline in an
         :math:`n`-dimensional space.
     delta : double
