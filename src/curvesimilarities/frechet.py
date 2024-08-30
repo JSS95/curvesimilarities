@@ -15,6 +15,7 @@ __all__ = [
     "fd_matching",
     "dfd",
     "dfd_idxs",
+    "dfd_matching",
 ]
 
 
@@ -432,3 +433,31 @@ def dfd_idxs(P, Q):
         index_1, index_2 = _dfd_idxs(ca)
         ret = ca[-1, -1], int(index_1), int(index_2)
     return ret
+
+
+@njit(cache=True)
+def dfd_matching(P, Q):
+    """Locally correct discrete Fréchet matching [1]_.
+
+    Parameters
+    ----------
+    P : ndarray
+        An :math:`p` by :math:`n` array of :math:`p` points in an
+        :math:`n`-dimensional space.
+    Q : ndarray
+        An :math:`q` by :math:`n` array of :math:`q` points in an
+        :math:`n`-dimensional space.
+
+    Returns
+    -------
+    dist : double
+        The discrete Fréchet distance between *P* and *Q*, NaN if any array of points
+        is empty.
+    matching : ndarray
+        Locally correct discrete Fréchet matching in parameter space.
+
+    References
+    ----------
+    .. [1] Buchin, Kevin, et al. "Locally correct Fréchet matchings."
+       Computational Geometry 76 (2019): 1-18.
+    """
